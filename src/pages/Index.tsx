@@ -21,15 +21,26 @@ const Index = () => {
   const { toast } = useToast();
 
   const filteredContacts = useMemo(() => {
-    if (!searchTerm.trim()) return contacts;
-    const q = searchTerm.toLowerCase();
-    return contacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.company.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q)
-    );
-  }, [contacts, searchTerm]);
+    let result = contacts;
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      result = result.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.company.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q)
+      );
+    }
+    if (confidenceFilter !== 'all') {
+      result = result.filter((c) => c.confidence === confidenceFilter);
+    }
+    if (approvalFilter === 'approved') {
+      result = result.filter((c) => c.approved);
+    } else if (approvalFilter === 'pending') {
+      result = result.filter((c) => !c.approved);
+    }
+    return result;
+  }, [contacts, searchTerm, confidenceFilter, approvalFilter]);
 
   const allVisibleApproved = useMemo(
     () => filteredContacts.length > 0 && filteredContacts.every((c) => c.approved),
