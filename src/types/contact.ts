@@ -4,7 +4,7 @@ export type HILDesignation = 'person_location' | 'company_location' | 'manual' |
 export interface ActivityLog {
   id: string;
   contactId: string;
-  eventType: 'google_dork_linkedin' | 'firecrawl_website' | 'affinity_sync';
+  eventType: 'google_dork_linkedin' | 'firecrawl_website' | 'affinity_sync' | 'manual_entry';
   queryUsed: string;
   sourceUrl: string;
   resultSummary: string;
@@ -20,6 +20,8 @@ export interface Contact {
   companyLocation: string;
   confidence: ConfidenceLevel;
   hilDesignation: HILDesignation;
+  manualLocation: string;
+  manualSource: string;
   approved: boolean;
   affinityId: string;
   activityLogs: ActivityLog[];
