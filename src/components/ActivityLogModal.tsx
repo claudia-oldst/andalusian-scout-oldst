@@ -113,27 +113,34 @@ export const ActivityLogModal = ({
         </div>
 
         <DialogFooter className="flex items-center gap-3 pt-4 border-t border-border/30">
-          {contact.hilDesignation === 'manual' && contact.manualLocation ? (
-            <span className="text-xs text-foreground font-medium flex-1">{contact.manualLocation}</span>
-          ) : (
-            <Select
-              value={contact.hilDesignation || undefined}
-              onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
-            >
-              <SelectTrigger className="h-9 w-[200px] text-xs">
-                <SelectValue placeholder="Select designation…" />
-              </SelectTrigger>
-              <SelectContent>
-                {contact.personLocation && (
-                  <SelectItem value="person_location">{contact.personLocation}</SelectItem>
-                )}
-                {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
-                  <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
-                )}
-                <SelectItem value="manual">Other…</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
+          <Select
+            value={contact.hilDesignation || undefined}
+            onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
+          >
+            <SelectTrigger className="h-9 w-[200px] text-xs">
+              <SelectValue placeholder="Select designation…">
+                {contact.hilDesignation === 'manual' && contact.manualLocation
+                  ? contact.manualLocation
+                  : contact.hilDesignation === 'person_location'
+                  ? contact.personLocation
+                  : contact.hilDesignation === 'company_location'
+                  ? contact.companyLocation
+                  : 'Select designation…'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {contact.personLocation && (
+                <SelectItem value="person_location">{contact.personLocation}</SelectItem>
+              )}
+              {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
+                <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
+              )}
+              {contact.manualLocation && (
+                <SelectItem value="manual">{contact.manualLocation}</SelectItem>
+              )}
+              <SelectItem value="manual_new">Other…</SelectItem>
+            </SelectContent>
+          </Select>
           <Button
             onClick={() => onApprove(contact.id)}
             disabled={!contact.hilDesignation && !contact.approved}
