@@ -44,6 +44,8 @@ export const mockContacts: Contact[] = [
     companyLocation: 'Austin, TX',
     confidence: 'medium',
     hilDesignation: '',
+    manualLocation: '',
+    manualSource: '',
     approved: false,
     affinityId: 'AFF-00287',
     activityLogs: [
