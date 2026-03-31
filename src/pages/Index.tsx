@@ -152,12 +152,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header
-        onFetchContacts={handleFetchContacts}
-        onUploadCSV={handleUploadCSV}
-        onPushToAffinity={handlePushToAffinity}
-        onExportCSV={handleExportCSV}
-      />
+      <Header />
 
       <input
         ref={fileInputRef}
@@ -168,7 +163,14 @@ const Index = () => {
       />
 
       <main className="container py-6 space-y-4">
-        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+        <SearchBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          onFetchContacts={handleFetchContacts}
+          onUploadCSV={handleUploadCSV}
+          onPushToAffinity={handlePushToAffinity}
+          onExportCSV={handleExportCSV}
+        />
 
         <p className="text-[11px] text-muted-foreground tracking-wider uppercase">
           {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''} ·{' '}
