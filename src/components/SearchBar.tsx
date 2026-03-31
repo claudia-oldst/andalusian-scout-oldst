@@ -1,4 +1,4 @@
-import { Search, SlidersHorizontal, ChevronDown, Upload, Download, ArrowUpFromLine } from 'lucide-react';
+import { Search, ChevronDown, Upload, Download, ArrowUpFromLine } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -7,10 +7,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ConfidenceLevel } from '@/types/contact';
 
 interface SearchBarProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
+  confidenceFilter: ConfidenceLevel | 'all';
+  onConfidenceFilterChange: (value: ConfidenceLevel | 'all') => void;
+  approvalFilter: 'all' | 'approved' | 'pending';
+  onApprovalFilterChange: (value: 'all' | 'approved' | 'pending') => void;
   onFetchContacts: () => void;
   onUploadCSV: () => void;
   onPushToAffinity: () => void;
@@ -63,6 +75,10 @@ const SplitButton = ({
 export const SearchBar = ({
   searchTerm,
   onSearchChange,
+  confidenceFilter,
+  onConfidenceFilterChange,
+  approvalFilter,
+  onApprovalFilterChange,
   onFetchContacts,
   onUploadCSV,
   onPushToAffinity,
@@ -79,10 +95,27 @@ export const SearchBar = ({
           className="pl-9 h-9 bg-card border-border focus-visible:ring-accent text-sm"
         />
       </div>
-      <Button variant="outline" size="sm" className="h-9 text-muted-foreground hover:text-foreground">
-        <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
-        <span className="text-[11px] tracking-wider uppercase">Filters</span>
-      </Button>
+      <Select value={confidenceFilter} onValueChange={(v) => onConfidenceFilterChange(v as ConfidenceLevel | 'all')}>
+        <SelectTrigger className="h-9 w-[130px] text-xs border-border bg-card">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Confidence</SelectItem>
+          <SelectItem value="high">High</SelectItem>
+          <SelectItem value="medium">Medium</SelectItem>
+          <SelectItem value="low">Low</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={approvalFilter} onValueChange={(v) => onApprovalFilterChange(v as 'all' | 'approved' | 'pending')}>
+        <SelectTrigger className="h-9 w-[120px] text-xs border-border bg-card">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Status</SelectItem>
+          <SelectItem value="approved">Approved</SelectItem>
+          <SelectItem value="pending">Pending</SelectItem>
+        </SelectContent>
+      </Select>
       <div className="w-px h-6 bg-border" />
       <SplitButton
         label="Find Contacts"
