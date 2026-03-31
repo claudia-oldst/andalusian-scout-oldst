@@ -3,15 +3,15 @@ import { ConfidenceLevel } from '@/types/contact';
 import { cn } from '@/lib/utils';
 
 const config: Record<ConfidenceLevel, { label: string; className: string }> = {
-  high: { label: 'HIGH', className: 'bg-steel text-steel-foreground border-steel hover:bg-steel/90' },
-  medium: { label: 'MED', className: 'bg-secondary text-secondary-foreground border-secondary hover:bg-secondary/90' },
-  low: { label: 'LOW', className: 'bg-destructive/80 text-destructive-foreground border-destructive hover:bg-destructive/70' },
+  high: { label: 'HIGH', className: 'bg-steel/15 text-steel border-steel/30 hover:bg-steel/20' },
+  medium: { label: 'MED', className: 'bg-accent/15 text-accent border-accent/30 hover:bg-accent/20' },
+  low: { label: 'LOW', className: 'bg-destructive/15 text-destructive border-destructive/30 hover:bg-destructive/20' },
 };
 
 export const ConfidenceBadge = ({ level }: { level: ConfidenceLevel }) => {
   const c = config[level];
   return (
-    <Badge className={cn('text-[10px] tracking-widest font-semibold', c.className)}>
+    <Badge variant="outline" className={cn('text-[10px] tracking-widest font-semibold', c.className)}>
       {c.label}
     </Badge>
   );
