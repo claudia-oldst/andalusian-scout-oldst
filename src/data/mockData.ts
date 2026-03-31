@@ -10,6 +10,8 @@ export const mockContacts: Contact[] = [
     companyLocation: 'London, UK',
     confidence: 'high',
     hilDesignation: '',
+    manualLocation: '',
+    manualSource: '',
     approved: false,
     affinityId: 'AFF-00142',
     activityLogs: [
