@@ -73,12 +73,12 @@ const Index = () => {
   );
 
   const handleHILChange = useCallback(
-    (id: string, value: HILDesignation) => {
-      if (value === 'manual') {
+    (id: string, value: HILDesignation | 'manual_new') => {
+      if (value === 'manual_new') {
         setManualDialogContactId(id);
         return;
       }
-      updateContact(id, { hilDesignation: value });
+      updateContact(id, { hilDesignation: value as HILDesignation });
     },
     [updateContact]
   );
