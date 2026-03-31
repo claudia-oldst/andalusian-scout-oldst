@@ -74,7 +74,9 @@ export const ContactTable = ({
                 <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={contact.approved}
+                    disabled={!contact.hilDesignation}
                     onCheckedChange={() => onToggleApproval(contact.id)}
+                    title={!contact.hilDesignation ? 'Select a designation first' : undefined}
                   />
                 </TableCell>
                 <TableCell className="font-medium text-foreground text-sm py-2.5">{contact.name}</TableCell>

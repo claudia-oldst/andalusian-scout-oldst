@@ -54,10 +54,20 @@ const Index = () => {
     (checked: boolean) => {
       const visibleIds = new Set(filteredContacts.map((c) => c.id));
       setContacts((prev) =>
-        prev.map((c) => (visibleIds.has(c.id) ? { ...c, approved: checked } : c))
+        prev.map((c) =>
+          visibleIds.has(c.id) && (c.hilDesignation || !checked)
+            ? { ...c, approved: checked }
+            : c
+        )
       );
+      if (checked) {
+        const skipped = filteredContacts.filter((c) => !c.hilDesignation).length;
+        if (skipped > 0) {
+          toast({ title: 'Some Skipped', description: `${skipped} contact(s) need a designation before approval.` });
+        }
+      }
     },
-    [filteredContacts]
+    [filteredContacts, toast]
   );
 
   const handleHILChange = useCallback(
