@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ExternalLink, Search, Globe, RefreshCw } from 'lucide-react';
+import { ExternalLink, Search, Globe, RefreshCw, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
 const eventConfig: Record<ActivityLog['eventType'], { label: string; icon: React.ElementType; color: string }> = {
