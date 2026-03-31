@@ -35,29 +35,32 @@ export const ContactTable = ({
   allVisibleApproved,
 }: ContactTableProps) => {
   return (
-    <div className="bg-card rounded-lg border border-border/40 shadow-sm overflow-hidden">
+    <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="bg-secondary/30 hover:bg-secondary/30">
-            <TableHead className="w-12">
+          <TableRow className="bg-muted/50 hover:bg-muted/50 border-b border-border">
+            <TableHead className="w-10 py-2.5">
               <Checkbox
                 checked={allVisibleApproved && contacts.length > 0}
                 onCheckedChange={(checked) => onApproveAll(!!checked)}
               />
             </TableHead>
-            <TableHead className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground">Name</TableHead>
-            <TableHead className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground">Company</TableHead>
-            <TableHead className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground">Email</TableHead>
-            <TableHead className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground">Person Location</TableHead>
-            <TableHead className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground">Company Location</TableHead>
-            <TableHead className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground">Confidence</TableHead>
-            <TableHead className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground">HIL Designation</TableHead>
+            {['Name', 'Company', 'Email', 'Person Location', 'Company Location', 'Confidence', 'HIL Designation'].map(
+              (col) => (
+                <TableHead
+                  key={col}
+                  className="text-[10px] tracking-[0.14em] uppercase font-semibold text-muted-foreground py-2.5"
+                >
+                  {col}
+                </TableHead>
+              )
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {contacts.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-16 text-muted-foreground text-sm">
                 No contacts match your search.
               </TableCell>
             </TableRow>
@@ -65,29 +68,29 @@ export const ContactTable = ({
             contacts.map((contact) => (
               <TableRow
                 key={contact.id}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                className="cursor-pointer hover:bg-muted/30 transition-colors border-b border-border/50"
                 onClick={() => onRowClick(contact)}
               >
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={contact.approved}
                     onCheckedChange={() => onToggleApproval(contact.id)}
                   />
                 </TableCell>
-                <TableCell className="font-medium text-foreground">{contact.name}</TableCell>
-                <TableCell className="text-muted-foreground">{contact.company}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">{contact.email}</TableCell>
-                <TableCell className="text-sm">{contact.personLocation}</TableCell>
-                <TableCell className="text-sm">{contact.companyLocation}</TableCell>
-                <TableCell>
+                <TableCell className="font-medium text-foreground text-sm py-2.5">{contact.name}</TableCell>
+                <TableCell className="text-muted-foreground text-sm py-2.5">{contact.company}</TableCell>
+                <TableCell className="text-muted-foreground text-xs py-2.5">{contact.email}</TableCell>
+                <TableCell className="text-sm py-2.5">{contact.personLocation}</TableCell>
+                <TableCell className="text-sm py-2.5">{contact.companyLocation}</TableCell>
+                <TableCell className="py-2.5">
                   <ConfidenceBadge level={contact.confidence} />
                 </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                   <Select
                     value={contact.hilDesignation || undefined}
                     onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
                   >
-                    <SelectTrigger className="h-8 w-[150px] text-xs border-border/50">
+                    <SelectTrigger className="h-7 w-[140px] text-xs border-border">
                       <SelectValue placeholder="Select…" />
                     </SelectTrigger>
                     <SelectContent>

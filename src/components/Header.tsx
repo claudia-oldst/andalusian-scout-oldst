@@ -1,4 +1,4 @@
-import { ChevronDown, Search, Upload, Download, ArrowUpFromLine, ArrowDownToLine } from 'lucide-react';
+import { ChevronDown, Search, Upload, Download, ArrowUpFromLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -32,15 +32,19 @@ const SplitButton = ({
   <div className="flex">
     <Button
       onClick={onClick}
-      className="rounded-r-none bg-accent text-accent-foreground hover:bg-accent/90 text-xs tracking-widest uppercase font-medium"
+      size="sm"
+      className="rounded-r-none bg-accent text-accent-foreground hover:bg-accent/90 text-[11px] tracking-[0.12em] uppercase font-medium h-8"
     >
-      <Icon className="h-4 w-4 mr-1.5" />
+      <Icon className="h-3.5 w-3.5 mr-1.5" />
       {label}
     </Button>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="rounded-l-none border-l border-accent-foreground/20 bg-accent text-accent-foreground hover:bg-accent/90 px-2">
-          <ChevronDown className="h-4 w-4" />
+        <Button
+          size="sm"
+          className="rounded-l-none border-l border-white/20 bg-accent text-accent-foreground hover:bg-accent/90 px-1.5 h-8"
+        >
+          <ChevronDown className="h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -55,25 +59,25 @@ const SplitButton = ({
 
 export const Header = ({ onFetchContacts, onUploadCSV, onPushToAffinity, onExportCSV }: HeaderProps) => {
   return (
-    <header className="sticky top-0 z-50 w-full bg-primary/95 backdrop-blur-md border-b border-border/30">
-      <div className="container flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-50 w-full bg-primary border-b border-primary/80">
+      <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded bg-accent flex items-center justify-center">
-            <span className="text-accent-foreground font-bold text-sm">A</span>
+          <div className="h-7 w-7 rounded bg-accent/90 flex items-center justify-center">
+            <span className="text-accent-foreground font-bold text-xs">A</span>
           </div>
           <div>
-            <h1 className="text-primary-foreground text-sm font-semibold tracking-[0.2em] uppercase">
+            <h1 className="text-primary-foreground text-[11px] font-semibold tracking-[0.2em] uppercase leading-tight">
               Andalusian Credit Partners
             </h1>
-            <p className="text-primary-foreground/60 text-[10px] tracking-[0.15em] uppercase">
+            <p className="text-primary-foreground/50 text-[9px] tracking-[0.15em] uppercase">
               Location Scout · OSINT Platform
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <SplitButton
-            label="Find New Contacts"
+            label="Find Contacts"
             icon={Search}
             onClick={onFetchContacts}
             dropdownLabel="Upload Source CSV"
@@ -81,7 +85,7 @@ export const Header = ({ onFetchContacts, onUploadCSV, onPushToAffinity, onExpor
             onDropdownClick={onUploadCSV}
           />
           <SplitButton
-            label="Map Found Contacts"
+            label="Map Contacts"
             icon={ArrowUpFromLine}
             onClick={onPushToAffinity}
             dropdownLabel="Export Verified CSV"

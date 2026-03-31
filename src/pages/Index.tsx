@@ -145,7 +145,6 @@ const Index = () => {
     toast({ title: 'Exported', description: `${approved.length} contacts exported.` });
   }, [contacts, toast]);
 
-  // Keep selectedContact in sync with contacts state
   const currentSelectedContact = useMemo(
     () => (selectedContact ? contacts.find((c) => c.id === selectedContact.id) || selectedContact : null),
     [contacts, selectedContact]
@@ -168,15 +167,13 @@ const Index = () => {
         onChange={handleFileChange}
       />
 
-      <main className="container py-8 space-y-6">
+      <main className="container py-6 space-y-4">
         <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
 
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground tracking-wider uppercase">
-            {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''} ·{' '}
-            {contacts.filter((c) => c.approved).length} approved
-          </p>
-        </div>
+        <p className="text-[11px] text-muted-foreground tracking-wider uppercase">
+          {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''} ·{' '}
+          {contacts.filter((c) => c.approved).length} approved
+        </p>
 
         <ContactTable
           contacts={filteredContacts}
