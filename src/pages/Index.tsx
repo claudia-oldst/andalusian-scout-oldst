@@ -5,13 +5,15 @@ import { ContactTable } from '@/components/ContactTable';
 import { ActivityLogModal } from '@/components/ActivityLogModal';
 import { ManualLocationDialog } from '@/components/ManualLocationDialog';
 import { mockContacts } from '@/data/mockData';
-import { Contact, HILDesignation } from '@/types/contact';
+import { Contact, HILDesignation, ConfidenceLevel } from '@/types/contact';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
 const Index = () => {
   const [contacts, setContacts] = useState<Contact[]>(mockContacts);
   const [searchTerm, setSearchTerm] = useState('');
+  const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceLevel | 'all'>('all');
+  const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [manualDialogContactId, setManualDialogContactId] = useState<string | null>(null);
@@ -19,15 +21,26 @@ const Index = () => {
   const { toast } = useToast();
 
   const filteredContacts = useMemo(() => {
-    if (!searchTerm.trim()) return contacts;
-    const q = searchTerm.toLowerCase();
-    return contacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.company.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q)
-    );
-  }, [contacts, searchTerm]);
+    let result = contacts;
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      result = result.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.company.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q)
+      );
+    }
+    if (confidenceFilter !== 'all') {
+      result = result.filter((c) => c.confidence === confidenceFilter);
+    }
+    if (approvalFilter === 'approved') {
+      result = result.filter((c) => c.approved);
+    } else if (approvalFilter === 'pending') {
+      result = result.filter((c) => !c.approved);
+    }
+    return result;
+  }, [contacts, searchTerm, confidenceFilter, approvalFilter]);
 
   const allVisibleApproved = useMemo(
     () => filteredContacts.length > 0 && filteredContacts.every((c) => c.approved),
@@ -230,6 +243,10 @@ const Index = () => {
         <SearchBar
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          confidenceFilter={confidenceFilter}
+          onConfidenceFilterChange={setConfidenceFilter}
+          approvalFilter={approvalFilter}
+          onApprovalFilterChange={setApprovalFilter}
           onFetchContacts={handleFetchContacts}
           onUploadCSV={handleUploadCSV}
           onPushToAffinity={handlePushToAffinity}
