@@ -78,6 +78,8 @@ export const mockContacts: Contact[] = [
     companyLocation: 'Hong Kong',
     confidence: 'low',
     hilDesignation: '',
+    manualLocation: '',
+    manualSource: '',
     approved: false,
     affinityId: 'AFF-00391',
     activityLogs: [

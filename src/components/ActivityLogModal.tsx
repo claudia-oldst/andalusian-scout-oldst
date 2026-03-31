@@ -23,6 +23,7 @@ const eventConfig: Record<ActivityLog['eventType'], { label: string; icon: React
   google_dork_linkedin: { label: 'Google Dorking · LinkedIn Scrape', icon: Search, color: 'bg-accent' },
   firecrawl_website: { label: 'Firecrawl · Website Crawl', icon: Globe, color: 'bg-steel' },
   affinity_sync: { label: 'Affinity CRM · Sync', icon: RefreshCw, color: 'bg-secondary' },
+  manual_entry: { label: 'Manual Entry · User Provided', icon: MapPin, color: 'bg-primary' },
 };
 
 interface ActivityLogModalProps {
