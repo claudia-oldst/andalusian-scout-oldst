@@ -116,17 +116,22 @@ export const ActivityLogModal = ({
             value={contact.hilDesignation || undefined}
             onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
           >
-            <SelectTrigger className="h-9 w-[180px] text-xs">
-              <SelectValue placeholder="HIL Designation…" />
+            <SelectTrigger className="h-9 w-[200px] text-xs">
+              <SelectValue placeholder="Select designation…" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="person_location">Person Location</SelectItem>
-              <SelectItem value="company_location">Company Location</SelectItem>
+              {contact.personLocation && (
+                <SelectItem value="person_location">{contact.personLocation}</SelectItem>
+              )}
+              {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
+                <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
+              )}
               <SelectItem value="manual">Manual Entry</SelectItem>
             </SelectContent>
           </Select>
           <Button
             onClick={() => onApprove(contact.id)}
+            disabled={!contact.hilDesignation && !contact.approved}
             className="bg-steel text-steel-foreground hover:bg-steel/90 text-xs tracking-wider uppercase"
           >
             {contact.approved ? 'Approved ✓' : 'Approve Record'}

@@ -74,7 +74,9 @@ export const ContactTable = ({
                 <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={contact.approved}
+                    disabled={!contact.hilDesignation}
                     onCheckedChange={() => onToggleApproval(contact.id)}
+                    title={!contact.hilDesignation ? 'Select a designation first' : undefined}
                   />
                 </TableCell>
                 <TableCell className="font-medium text-foreground text-sm py-2.5">{contact.name}</TableCell>
@@ -90,12 +92,16 @@ export const ContactTable = ({
                     value={contact.hilDesignation || undefined}
                     onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
                   >
-                    <SelectTrigger className="h-7 w-[140px] text-xs border-border">
+                    <SelectTrigger className="h-7 w-[160px] text-xs border-border">
                       <SelectValue placeholder="Select…" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="person_location">Person Location</SelectItem>
-                      <SelectItem value="company_location">Company Location</SelectItem>
+                      {contact.personLocation && (
+                        <SelectItem value="person_location">{contact.personLocation}</SelectItem>
+                      )}
+                      {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
+                        <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
+                      )}
                       <SelectItem value="manual">Manual Entry</SelectItem>
                     </SelectContent>
                   </Select>

@@ -40,19 +40,34 @@ const Index = () => {
   const handleToggleApproval = useCallback(
     (id: string) => {
       const contact = contacts.find((c) => c.id === id);
-      updateContact(id, { approved: !contact?.approved });
+      if (!contact) return;
+      if (!contact.hilDesignation && !contact.approved) {
+        toast({ title: 'Designation Required', description: 'Select a designation before approving.', variant: 'destructive' });
+        return;
+      }
+      updateContact(id, { approved: !contact.approved });
     },
-    [contacts, updateContact]
+    [contacts, updateContact, toast]
   );
 
   const handleApproveAll = useCallback(
     (checked: boolean) => {
       const visibleIds = new Set(filteredContacts.map((c) => c.id));
       setContacts((prev) =>
-        prev.map((c) => (visibleIds.has(c.id) ? { ...c, approved: checked } : c))
+        prev.map((c) =>
+          visibleIds.has(c.id) && (c.hilDesignation || !checked)
+            ? { ...c, approved: checked }
+            : c
+        )
       );
+      if (checked) {
+        const skipped = filteredContacts.filter((c) => !c.hilDesignation).length;
+        if (skipped > 0) {
+          toast({ title: 'Some Skipped', description: `${skipped} contact(s) need a designation before approval.` });
+        }
+      }
     },
-    [filteredContacts]
+    [filteredContacts, toast]
   );
 
   const handleHILChange = useCallback(
