@@ -1,16 +1,202 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { Header } from '@/components/Header';
+import { SearchBar } from '@/components/SearchBar';
+import { ContactTable } from '@/components/ContactTable';
+import { ActivityLogModal } from '@/components/ActivityLogModal';
+import { mockContacts } from '@/data/mockData';
+import { Contact, HILDesignation } from '@/types/contact';
+import { useToast } from '@/hooks/use-toast';
+import Papa from 'papaparse';
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const [contacts, setContacts] = useState<Contact[]>(mockContacts);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const filteredContacts = useMemo(() => {
+    if (!searchTerm.trim()) return contacts;
+    const q = searchTerm.toLowerCase();
+    return contacts.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.company.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q)
+    );
+  }, [contacts, searchTerm]);
+
+  const allVisibleApproved = useMemo(
+    () => filteredContacts.length > 0 && filteredContacts.every((c) => c.approved),
+    [filteredContacts]
+  );
+
+  const updateContact = useCallback((id: string, patch: Partial<Contact>) => {
+    setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    setSelectedContact((prev) => (prev?.id === id ? { ...prev, ...patch } : prev));
+  }, []);
+
+  const handleToggleApproval = useCallback(
+    (id: string) => {
+      const contact = contacts.find((c) => c.id === id);
+      updateContact(id, { approved: !contact?.approved });
+    },
+    [contacts, updateContact]
+  );
+
+  const handleApproveAll = useCallback(
+    (checked: boolean) => {
+      const visibleIds = new Set(filteredContacts.map((c) => c.id));
+      setContacts((prev) =>
+        prev.map((c) => (visibleIds.has(c.id) ? { ...c, approved: checked } : c))
+      );
+    },
+    [filteredContacts]
+  );
+
+  const handleHILChange = useCallback(
+    (id: string, value: HILDesignation) => updateContact(id, { hilDesignation: value }),
+    [updateContact]
+  );
+
+  const handleRowClick = useCallback((contact: Contact) => {
+    setSelectedContact(contact);
+    setModalOpen(true);
+  }, []);
+
+  const handleFetchContacts = useCallback(() => {
+    toast({ title: 'Affinity Fetch', description: 'Fetching contacts from Affinity CRM… (placeholder)' });
+  }, [toast]);
+
+  const handleUploadCSV = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      Papa.parse(file, {
+        header: true,
+        complete: (results) => {
+          const newContacts: Contact[] = (results.data as any[])
+            .filter((row) => row.name && row.email)
+            .map((row, i) => ({
+              id: `csv-${Date.now()}-${i}`,
+              name: row.name || '',
+              company: row.company || '',
+              email: row.email || '',
+              personLocation: row.person_location || '',
+              companyLocation: row.company_location || '',
+              confidence:
+                row.person_location && row.company_location
+                  ? row.person_location === row.company_location
+                    ? 'high'
+                    : 'medium'
+                  : 'low',
+              hilDesignation: '',
+              approved: false,
+              affinityId: row.affinity_id || '',
+              activityLogs: [],
+            }));
+          setContacts((prev) => [...prev, ...newContacts]);
+          toast({ title: 'CSV Imported', description: `${newContacts.length} contacts added.` });
+        },
+      });
+      e.target.value = '';
+    },
+    [toast]
+  );
+
+  const handlePushToAffinity = useCallback(() => {
+    const approved = contacts.filter((c) => c.approved);
+    toast({
+      title: 'Push to Affinity',
+      description: `${approved.length} approved contacts ready to push. (placeholder)`,
+    });
+  }, [contacts, toast]);
+
+  const handleExportCSV = useCallback(() => {
+    const approved = contacts.filter((c) => c.approved);
+    if (approved.length === 0) {
+      toast({ title: 'No Records', description: 'Approve at least one contact to export.', variant: 'destructive' });
+      return;
+    }
+    const csv = Papa.unparse(
+      approved.map((c) => ({
+        name: c.name,
+        company: c.company,
+        email: c.email,
+        person_location: c.personLocation,
+        company_location: c.companyLocation,
+        confidence: c.confidence,
+        hil_designation: c.hilDesignation,
+        affinity_id: c.affinityId,
+      }))
+    );
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `verified-contacts-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Exported', description: `${approved.length} contacts exported.` });
+  }, [contacts, toast]);
+
+  // Keep selectedContact in sync with contacts state
+  const currentSelectedContact = useMemo(
+    () => (selectedContact ? contacts.find((c) => c.id === selectedContact.id) || selectedContact : null),
+    [contacts, selectedContact]
+  );
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background">
+      <Header
+        onFetchContacts={handleFetchContacts}
+        onUploadCSV={handleUploadCSV}
+        onPushToAffinity={handlePushToAffinity}
+        onExportCSV={handleExportCSV}
+      />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      <main className="container py-8 space-y-6">
+        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground tracking-wider uppercase">
+            {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''} ·{' '}
+            {contacts.filter((c) => c.approved).length} approved
+          </p>
+        </div>
+
+        <ContactTable
+          contacts={filteredContacts}
+          onToggleApproval={handleToggleApproval}
+          onApproveAll={handleApproveAll}
+          onHILChange={handleHILChange}
+          onRowClick={handleRowClick}
+          allVisibleApproved={allVisibleApproved}
+        />
+      </main>
+
+      <ActivityLogModal
+        contact={currentSelectedContact}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onApprove={handleToggleApproval}
+        onHILChange={handleHILChange}
+      />
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
