@@ -5,7 +5,7 @@ import { ContactTable } from '@/components/ContactTable';
 import { ActivityLogModal } from '@/components/ActivityLogModal';
 import { ManualLocationDialog } from '@/components/ManualLocationDialog';
 import { mockContacts } from '@/data/mockData';
-import { Contact, HILDesignation } from '@/types/contact';
+import { Contact, HILDesignation, ConfidenceLevel } from '@/types/contact';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
