@@ -243,6 +243,10 @@ const Index = () => {
         <SearchBar
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          confidenceFilter={confidenceFilter}
+          onConfidenceFilterChange={setConfidenceFilter}
+          approvalFilter={approvalFilter}
+          onApprovalFilterChange={setApprovalFilter}
           onFetchContacts={handleFetchContacts}
           onUploadCSV={handleUploadCSV}
           onPushToAffinity={handlePushToAffinity}
