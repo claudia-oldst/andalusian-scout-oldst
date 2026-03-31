@@ -40,9 +40,14 @@ const Index = () => {
   const handleToggleApproval = useCallback(
     (id: string) => {
       const contact = contacts.find((c) => c.id === id);
-      updateContact(id, { approved: !contact?.approved });
+      if (!contact) return;
+      if (!contact.hilDesignation && !contact.approved) {
+        toast({ title: 'Designation Required', description: 'Select a designation before approving.', variant: 'destructive' });
+        return;
+      }
+      updateContact(id, { approved: !contact.approved });
     },
-    [contacts, updateContact]
+    [contacts, updateContact, toast]
   );
 
   const handleApproveAll = useCallback(
