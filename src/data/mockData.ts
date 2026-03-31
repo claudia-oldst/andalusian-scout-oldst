@@ -10,6 +10,8 @@ export const mockContacts: Contact[] = [
     companyLocation: 'London, UK',
     confidence: 'high',
     hilDesignation: '',
+    manualLocation: '',
+    manualSource: '',
     approved: false,
     affinityId: 'AFF-00142',
     activityLogs: [
@@ -42,6 +44,8 @@ export const mockContacts: Contact[] = [
     companyLocation: 'Austin, TX',
     confidence: 'medium',
     hilDesignation: '',
+    manualLocation: '',
+    manualSource: '',
     approved: false,
     affinityId: 'AFF-00287',
     activityLogs: [
@@ -74,6 +78,8 @@ export const mockContacts: Contact[] = [
     companyLocation: 'Hong Kong',
     confidence: 'low',
     hilDesignation: '',
+    manualLocation: '',
+    manualSource: '',
     approved: false,
     affinityId: 'AFF-00391',
     activityLogs: [

@@ -16,13 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ExternalLink, Search, Globe, RefreshCw } from 'lucide-react';
+import { ExternalLink, Search, Globe, RefreshCw, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
 const eventConfig: Record<ActivityLog['eventType'], { label: string; icon: React.ElementType; color: string }> = {
   google_dork_linkedin: { label: 'Google Dorking · LinkedIn Scrape', icon: Search, color: 'bg-accent' },
   firecrawl_website: { label: 'Firecrawl · Website Crawl', icon: Globe, color: 'bg-steel' },
   affinity_sync: { label: 'Affinity CRM · Sync', icon: RefreshCw, color: 'bg-secondary' },
+  manual_entry: { label: 'Manual Entry · User Provided', icon: MapPin, color: 'bg-primary' },
 };
 
 interface ActivityLogModalProps {
@@ -112,23 +113,27 @@ export const ActivityLogModal = ({
         </div>
 
         <DialogFooter className="flex items-center gap-3 pt-4 border-t border-border/30">
-          <Select
-            value={contact.hilDesignation || undefined}
-            onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
-          >
-            <SelectTrigger className="h-9 w-[200px] text-xs">
-              <SelectValue placeholder="Select designation…" />
-            </SelectTrigger>
-            <SelectContent>
-              {contact.personLocation && (
-                <SelectItem value="person_location">{contact.personLocation}</SelectItem>
-              )}
-              {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
-                <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
-              )}
-              <SelectItem value="manual">Manual Entry</SelectItem>
-            </SelectContent>
-          </Select>
+          {contact.hilDesignation === 'manual' && contact.manualLocation ? (
+            <span className="text-xs text-foreground font-medium flex-1">{contact.manualLocation}</span>
+          ) : (
+            <Select
+              value={contact.hilDesignation || undefined}
+              onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
+            >
+              <SelectTrigger className="h-9 w-[200px] text-xs">
+                <SelectValue placeholder="Select designation…" />
+              </SelectTrigger>
+              <SelectContent>
+                {contact.personLocation && (
+                  <SelectItem value="person_location">{contact.personLocation}</SelectItem>
+                )}
+                {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
+                  <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
+                )}
+                <SelectItem value="manual">Other…</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Button
             onClick={() => onApprove(contact.id)}
             disabled={!contact.hilDesignation && !contact.approved}

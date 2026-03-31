@@ -88,23 +88,27 @@ export const ContactTable = ({
                   <ConfidenceBadge level={contact.confidence} />
                 </TableCell>
                 <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    value={contact.hilDesignation || undefined}
-                    onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
-                  >
-                    <SelectTrigger className="h-7 w-[160px] text-xs border-border">
-                      <SelectValue placeholder="Select…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contact.personLocation && (
-                        <SelectItem value="person_location">{contact.personLocation}</SelectItem>
-                      )}
-                      {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
-                        <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
-                      )}
-                      <SelectItem value="manual">Manual Entry</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {contact.hilDesignation === 'manual' && contact.manualLocation ? (
+                    <span className="text-xs text-foreground font-medium">{contact.manualLocation}</span>
+                  ) : (
+                    <Select
+                      value={contact.hilDesignation || undefined}
+                      onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
+                    >
+                      <SelectTrigger className="h-7 w-[160px] text-xs border-border">
+                        <SelectValue placeholder="Select…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contact.personLocation && (
+                          <SelectItem value="person_location">{contact.personLocation}</SelectItem>
+                        )}
+                        {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
+                          <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
+                        )}
+                        <SelectItem value="manual">Other…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </TableCell>
               </TableRow>
             ))

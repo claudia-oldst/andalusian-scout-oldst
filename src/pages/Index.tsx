@@ -3,6 +3,7 @@ import { Header } from '@/components/Header';
 import { SearchBar } from '@/components/SearchBar';
 import { ContactTable } from '@/components/ContactTable';
 import { ActivityLogModal } from '@/components/ActivityLogModal';
+import { ManualLocationDialog } from '@/components/ManualLocationDialog';
 import { mockContacts } from '@/data/mockData';
 import { Contact, HILDesignation } from '@/types/contact';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +14,7 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [manualDialogContactId, setManualDialogContactId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -71,8 +73,45 @@ const Index = () => {
   );
 
   const handleHILChange = useCallback(
-    (id: string, value: HILDesignation) => updateContact(id, { hilDesignation: value }),
+    (id: string, value: HILDesignation) => {
+      if (value === 'manual') {
+        setManualDialogContactId(id);
+        return;
+      }
+      updateContact(id, { hilDesignation: value });
+    },
     [updateContact]
+  );
+
+  const handleManualSubmit = useCallback(
+    (city: string, country: string, source: string) => {
+      if (!manualDialogContactId) return;
+      const location = `${city}, ${country}`;
+      const newLog = {
+        id: `manual-${Date.now()}`,
+        contactId: manualDialogContactId,
+        eventType: 'manual_entry' as const,
+        queryUsed: source || 'No source provided',
+        sourceUrl: '',
+        resultSummary: `Manual location set to "${location}". Source: ${source || 'Not specified'}.`,
+        timestamp: new Date().toISOString(),
+      };
+      setContacts((prev) =>
+        prev.map((c) =>
+          c.id === manualDialogContactId
+            ? {
+                ...c,
+                hilDesignation: 'manual' as HILDesignation,
+                manualLocation: location,
+                manualSource: source,
+                activityLogs: [...c.activityLogs, newLog],
+              }
+            : c
+        )
+      );
+      setManualDialogContactId(null);
+    },
+    [manualDialogContactId]
   );
 
   const handleRowClick = useCallback((contact: Contact) => {
@@ -111,6 +150,8 @@ const Index = () => {
                     : 'medium'
                   : 'low',
               hilDesignation: '',
+              manualLocation: '',
+              manualSource: '',
               approved: false,
               affinityId: row.affinity_id || '',
               activityLogs: [],
@@ -145,6 +186,10 @@ const Index = () => {
         email: c.email,
         person_location: c.personLocation,
         company_location: c.companyLocation,
+        final_location: c.hilDesignation === 'manual' ? c.manualLocation
+          : c.hilDesignation === 'person_location' ? c.personLocation
+          : c.hilDesignation === 'company_location' ? c.companyLocation
+          : '',
         confidence: c.confidence,
         hil_designation: c.hilDesignation,
         affinity_id: c.affinityId,
@@ -164,6 +209,10 @@ const Index = () => {
     () => (selectedContact ? contacts.find((c) => c.id === selectedContact.id) || selectedContact : null),
     [contacts, selectedContact]
   );
+
+  const manualDialogContact = manualDialogContactId
+    ? contacts.find((c) => c.id === manualDialogContactId)
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -208,6 +257,13 @@ const Index = () => {
         onOpenChange={setModalOpen}
         onApprove={handleToggleApproval}
         onHILChange={handleHILChange}
+      />
+
+      <ManualLocationDialog
+        open={!!manualDialogContactId}
+        onOpenChange={(open) => { if (!open) setManualDialogContactId(null); }}
+        contactName={manualDialogContact?.name || ''}
+        onSubmit={handleManualSubmit}
       />
     </div>
   );
