@@ -12,6 +12,8 @@ import Papa from 'papaparse';
 const Index = () => {
   const [contacts, setContacts] = useState<Contact[]>(mockContacts);
   const [searchTerm, setSearchTerm] = useState('');
+  const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceLevel | 'all'>('all');
+  const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [manualDialogContactId, setManualDialogContactId] = useState<string | null>(null);
