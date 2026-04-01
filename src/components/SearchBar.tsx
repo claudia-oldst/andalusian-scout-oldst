@@ -1,4 +1,4 @@
-import { Search, ChevronDown, Upload, Download, ArrowUpFromLine } from 'lucide-react';
+import { Search, ChevronDown, Upload, Download, ArrowUpFromLine, Radar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +26,8 @@ interface SearchBarProps {
   onUploadCSV: () => void;
   onPushToAffinity: () => void;
   onExportCSV: () => void;
+  onRunBulkDiscovery: () => void;
+  discoveryRunning?: boolean;
 }
 
 const SplitButton = ({
@@ -82,6 +84,8 @@ export const SearchBar = ({
   onUploadCSV,
   onPushToAffinity,
   onExportCSV,
+  onRunBulkDiscovery,
+  discoveryRunning,
 }: SearchBarProps) => {
   return (
     <div className="flex items-center gap-2 w-full">
@@ -132,6 +136,17 @@ export const SearchBar = ({
         dropdownIcon={Download}
         onDropdownClick={onExportCSV}
       />
+      <Button
+        onClick={onRunBulkDiscovery}
+        disabled={discoveryRunning}
+        size="sm"
+        variant="outline"
+        className="h-9 text-[11px] tracking-[0.12em] uppercase font-medium gap-1.5"
+        title="Run OSINT discovery on all pending contacts"
+      >
+        <Radar className="h-3.5 w-3.5" />
+        {discoveryRunning ? 'Running…' : 'Discover'}
+      </Button>
     </div>
   );
 };
