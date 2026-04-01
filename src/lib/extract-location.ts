@@ -60,6 +60,15 @@ export function extractCompanyLocationFromMarkdown(markdown: string): string {
     }
   }
 
+  // Try "Registered office address" pattern (Companies House)
+  const regMatch = markdown.match(/Registered office address\s*[:\-–]?\s*(.+)/i);
+  if (regMatch?.[1]) {
+    const loc = regMatch[1].trim().split('\n')[0].trim();
+    if (loc.length < 150) {
+      return cleanLocation(loc);
+    }
+  }
+
   return '';
 }
 

@@ -245,6 +245,7 @@ const Index = () => {
         const top = companyResult.data[0];
         companyUrl = top.url || '';
         const mdLoc = extractCompanyLocationFromMarkdown(top.markdown || '');
+        // Fallback: use description (usually cleaner) rather than full markdown
         companyLoc = mdLoc || top.description || top.title || '';
         companySnippet = (top.markdown || top.description || '').slice(0, 500);
       }
