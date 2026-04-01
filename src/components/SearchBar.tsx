@@ -23,6 +23,7 @@ interface SearchBarProps {
   approvalFilter: 'all' | 'approved' | 'pending';
   onApprovalFilterChange: (value: 'all' | 'approved' | 'pending') => void;
   onFetchContacts: () => void;
+  onAddContact: () => void;
   onUploadCSV: () => void;
   onPushToAffinity: () => void;
   onExportCSV: () => void;
