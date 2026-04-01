@@ -18,7 +18,7 @@ import {
   updateContactLocations,
 } from '@/lib/supabase-queries';
 import { firecrawlApi } from '@/lib/api/firecrawl';
-import { extractLocationFromMarkdown, extractCompanyLocationFromMarkdown, extractLocationFromDescription } from '@/lib/extract-location';
+import { extractLocationFromMarkdown, extractCompanyLocationFromMarkdown, extractLocationFromDescription, extractLocationFromGoogleHtml } from '@/lib/extract-location';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
