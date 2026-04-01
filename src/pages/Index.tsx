@@ -196,7 +196,7 @@ const Index = () => {
       });
 
       if (scrapeResult.success) {
-        const html = scrapeResult.data?.html || scrapeResult.html || '';
+        const html = scrapeResult.data?.html || '';
         const locFromHtml = extractLocationFromGoogleHtml(html);
         if (locFromHtml) {
           personLoc = locFromHtml;
