@@ -18,6 +18,7 @@ import {
   updateContactLocations,
 } from '@/lib/supabase-queries';
 import { firecrawlApi } from '@/lib/api/firecrawl';
+import { extractLocationFromMarkdown, extractCompanyLocationFromMarkdown } from '@/lib/extract-location';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
@@ -187,12 +188,18 @@ const Index = () => {
     let companySnippet = 'No results found.';
 
     try {
-      const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
+      const personResult = await firecrawlApi.search(personQuery, {
+        limit: 3,
+        scrapeOptions: { formats: ['markdown'] },
+      });
       if (personResult.success && personResult.data?.length > 0) {
         const top = personResult.data[0];
-        personLoc = top.description || top.title || '';
         personUrl = top.url || '';
-        personSnippet = personLoc.slice(0, 300);
+        // Try extracting clean location from markdown first
+        const mdLoc = extractLocationFromMarkdown(top.markdown || '');
+        personLoc = mdLoc || top.description || top.title || '';
+        // Keep full context for audit trail
+        personSnippet = (top.markdown || top.description || '').slice(0, 500);
       }
     } catch (err) {
       console.error('Person search failed:', err);
@@ -207,12 +214,16 @@ const Index = () => {
     });
 
     try {
-      const companyResult = await firecrawlApi.search(companyQuery, { limit: 3 });
+      const companyResult = await firecrawlApi.search(companyQuery, {
+        limit: 3,
+        scrapeOptions: { formats: ['markdown'] },
+      });
       if (companyResult.success && companyResult.data?.length > 0) {
         const top = companyResult.data[0];
-        companyLoc = top.description || top.title || '';
         companyUrl = top.url || '';
-        companySnippet = companyLoc.slice(0, 300);
+        const mdLoc = extractCompanyLocationFromMarkdown(top.markdown || '');
+        companyLoc = mdLoc || top.description || top.title || '';
+        companySnippet = (top.markdown || top.description || '').slice(0, 500);
       }
     } catch (err) {
       console.error('Company search failed:', err);
