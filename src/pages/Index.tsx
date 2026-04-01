@@ -437,6 +437,7 @@ const Index = () => {
           approvalFilter={approvalFilter}
           onApprovalFilterChange={setApprovalFilter}
           onFetchContacts={handleFetchContacts}
+          onAddContact={() => setAddContactOpen(true)}
           onUploadCSV={handleUploadCSV}
           onPushToAffinity={handlePushToAffinity}
           onExportCSV={handleExportCSV}
