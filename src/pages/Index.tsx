@@ -203,7 +203,7 @@ const Index = () => {
             const scrapeResult = await firecrawlApi.scrape(personUrl, {
               formats: ['markdown'],
             });
-            const scrapedMd = scrapeResult.data?.markdown || scrapeResult.markdown || '';
+            const scrapedMd = (scrapeResult as any).data?.markdown || (scrapeResult as any).markdown || '';
             if (scrapedMd) {
               const mdLoc = extractLocationFromMarkdown(scrapedMd);
               if (mdLoc) personLoc = mdLoc;
