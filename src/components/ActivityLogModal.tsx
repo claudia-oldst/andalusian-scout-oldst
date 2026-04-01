@@ -1,4 +1,4 @@
-import { Contact, HILDesignation, ActivityLog } from '@/types/contact';
+import { Contact, ActivityLog, DESIGNATION } from '@/types/contact';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,26 +16,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ExternalLink, Search, Globe, RefreshCw, MapPin } from 'lucide-react';
+import { ExternalLink, Search, Globe, RefreshCw, MapPin, Linkedin, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 
-const eventConfig: Record<ActivityLog['eventType'], { label: string; icon: React.ElementType; color: string }> = {
-  google_dork_linkedin: { label: 'Google Dorking · LinkedIn Scrape', icon: Search, color: 'bg-accent' },
-  firecrawl_website: { label: 'Firecrawl · Website Crawl', icon: Globe, color: 'bg-steel' },
-  affinity_sync: { label: 'Affinity CRM · Sync', icon: RefreshCw, color: 'bg-secondary' },
-  manual_entry: { label: 'Manual Entry · User Provided', icon: MapPin, color: 'bg-primary' },
+const iconMap: Record<string, React.ElementType> = {
+  search: Search,
+  linkedin: Linkedin,
+  globe: Globe,
+  refresh: RefreshCw,
+  edit: Pencil,
+};
+
+const colorMap: Record<string, string> = {
+  search: 'bg-accent',
+  linkedin: 'bg-accent',
+  globe: 'bg-steel',
+  refresh: 'bg-secondary',
+  edit: 'bg-primary',
 };
 
 interface ActivityLogModalProps {
   contact: Contact | null;
+  activityLogs: ActivityLog[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApprove: (id: string) => void;
-  onHILChange: (id: string, value: HILDesignation) => void;
+  onHILChange: (id: string, designationId: number) => void;
+}
+
+function resolveDisplayLocation(contact: Contact): string {
+  switch (contact.designation_id) {
+    case DESIGNATION.PERSON: return contact.person_location_raw;
+    case DESIGNATION.COMPANY: return contact.company_location_raw;
+    case DESIGNATION.MANUAL: return contact.manual_location;
+    default: return 'Select designation…';
+  }
 }
 
 export const ActivityLogModal = ({
   contact,
+  activityLogs,
   open,
   onOpenChange,
   onApprove,
@@ -49,10 +69,10 @@ export const ActivityLogModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <span className="text-lg font-semibold">{contact.name}</span>
-            <ConfidenceBadge level={contact.confidence} />
+            <ConfidenceBadge confidenceId={contact.confidence_id} />
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            {contact.company} · {contact.email}
+            {contact.company_name} · {contact.email_address}
           </DialogDescription>
         </DialogHeader>
 
@@ -62,48 +82,51 @@ export const ActivityLogModal = ({
           </h3>
 
           <div className="relative pl-6">
-            {/* Timeline line */}
             <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
 
             <div className="space-y-6">
-              {contact.activityLogs.map((log) => {
-                const cfg = eventConfig[log.eventType];
-                const Icon = cfg.icon;
+              {activityLogs.map((log) => {
+                const iconName = log.event_type?.icon_name || 'search';
+                const Icon = iconMap[iconName] || Search;
+                const bgColor = colorMap[iconName] || 'bg-accent';
+                const label = log.event_type?.label || 'Unknown Event';
+
                 return (
                   <div key={log.id} className="relative">
-                    {/* Timeline dot */}
-                    <div className={`absolute -left-6 top-1 h-[22px] w-[22px] rounded-full ${cfg.color} flex items-center justify-center`}>
+                    <div className={`absolute -left-6 top-1 h-[22px] w-[22px] rounded-full ${bgColor} flex items-center justify-center`}>
                       <Icon className="h-3 w-3 text-white" />
                     </div>
 
                     <div className="bg-muted/40 rounded-lg p-4 border border-border/30">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-semibold tracking-wider uppercase text-foreground">
-                          {cfg.label}
+                          {label}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
-                          {format(new Date(log.timestamp), 'MMM d, yyyy · HH:mm')}
+                          {format(new Date(log.created_at), 'MMM d, yyyy · HH:mm')}
                         </span>
                       </div>
 
                       <div className="mb-2">
                         <span className="text-[10px] tracking-wider uppercase text-muted-foreground">Query</span>
                         <code className="block mt-1 text-xs bg-primary/10 text-foreground rounded px-2 py-1.5 font-mono break-all">
-                          {log.queryUsed}
+                          {log.query_used}
                         </code>
                       </div>
 
-                      <p className="text-sm text-foreground/80 mb-2">{log.resultSummary}</p>
+                      <p className="text-sm text-foreground/80 mb-2">{log.result_snippet}</p>
 
-                      <a
-                        href={log.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        View Source
-                      </a>
+                      {log.source_url && (
+                        <a
+                          href={log.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View Source
+                        </a>
+                      )}
                     </div>
                   </div>
                 );
@@ -114,39 +137,33 @@ export const ActivityLogModal = ({
 
         <DialogFooter className="flex items-center gap-3 pt-4 border-t border-border/30">
           <Select
-            value={contact.hilDesignation || undefined}
-            onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
+            value={contact.designation_id !== DESIGNATION.PENDING ? String(contact.designation_id) : undefined}
+            onValueChange={(val) => onHILChange(contact.id, Number(val))}
           >
             <SelectTrigger className="h-9 w-[200px] text-xs">
               <SelectValue placeholder="Select designation…">
-                {contact.hilDesignation === 'manual' && contact.manualLocation
-                  ? contact.manualLocation
-                  : contact.hilDesignation === 'person_location'
-                  ? contact.personLocation
-                  : contact.hilDesignation === 'company_location'
-                  ? contact.companyLocation
-                  : 'Select designation…'}
+                {resolveDisplayLocation(contact)}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {contact.personLocation && (
-                <SelectItem value="person_location">{contact.personLocation}</SelectItem>
+              {contact.person_location_raw && (
+                <SelectItem value={String(DESIGNATION.PERSON)}>{contact.person_location_raw}</SelectItem>
               )}
-              {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
-                <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
+              {contact.company_location_raw && contact.company_location_raw !== contact.person_location_raw && (
+                <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw}</SelectItem>
               )}
-              {contact.manualLocation && (
-                <SelectItem value="manual">{contact.manualLocation}</SelectItem>
+              {contact.manual_location && (
+                <SelectItem value={String(DESIGNATION.MANUAL)}>{contact.manual_location}</SelectItem>
               )}
               <SelectItem value="manual_new">Other…</SelectItem>
             </SelectContent>
           </Select>
           <Button
             onClick={() => onApprove(contact.id)}
-            disabled={!contact.hilDesignation && !contact.approved}
+            disabled={contact.designation_id === DESIGNATION.PENDING && !contact.is_approved}
             className="bg-steel text-steel-foreground hover:bg-steel/90 text-xs tracking-wider uppercase"
           >
-            {contact.approved ? 'Approved ✓' : 'Approve Record'}
+            {contact.is_approved ? 'Approved ✓' : 'Approve Record'}
           </Button>
         </DialogFooter>
       </DialogContent>

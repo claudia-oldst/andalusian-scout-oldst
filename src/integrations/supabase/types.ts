@@ -14,7 +14,171 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_logs: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          event_type_id: number | null
+          id: string
+          query_used: string | null
+          result_snippet: string | null
+          source_url: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          event_type_id?: number | null
+          id?: string
+          query_used?: string | null
+          result_snippet?: string | null
+          source_url?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          event_type_id?: number | null
+          id?: string
+          query_used?: string | null
+          result_snippet?: string | null
+          source_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_event_type_id_fkey"
+            columns: ["event_type_id"]
+            isOneToOne: false
+            referencedRelation: "log_event_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      confidence_levels: {
+        Row: {
+          color_hex: string | null
+          id: number
+          label: string
+        }
+        Insert: {
+          color_hex?: string | null
+          id: number
+          label: string
+        }
+        Update: {
+          color_hex?: string | null
+          id?: number
+          label?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          affinity_id: string | null
+          company_location_raw: string | null
+          company_name: string
+          confidence_id: number | null
+          created_at: string | null
+          designation_id: number | null
+          email_address: string
+          id: string
+          is_approved: boolean | null
+          manual_location: string | null
+          manual_source_note: string | null
+          metadata: Json | null
+          name: string
+          person_location_raw: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          affinity_id?: string | null
+          company_location_raw?: string | null
+          company_name: string
+          confidence_id?: number | null
+          created_at?: string | null
+          designation_id?: number | null
+          email_address: string
+          id?: string
+          is_approved?: boolean | null
+          manual_location?: string | null
+          manual_source_note?: string | null
+          metadata?: Json | null
+          name: string
+          person_location_raw?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          affinity_id?: string | null
+          company_location_raw?: string | null
+          company_name?: string
+          confidence_id?: number | null
+          created_at?: string | null
+          designation_id?: number | null
+          email_address?: string
+          id?: string
+          is_approved?: boolean | null
+          manual_location?: string | null
+          manual_source_note?: string | null
+          metadata?: Json | null
+          name?: string
+          person_location_raw?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_confidence_id_fkey"
+            columns: ["confidence_id"]
+            isOneToOne: false
+            referencedRelation: "confidence_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_designation_id_fkey"
+            columns: ["designation_id"]
+            isOneToOne: false
+            referencedRelation: "designation_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      designation_types: {
+        Row: {
+          id: number
+          label: string
+        }
+        Insert: {
+          id: number
+          label: string
+        }
+        Update: {
+          id?: number
+          label?: string
+        }
+        Relationships: []
+      }
+      log_event_types: {
+        Row: {
+          icon_name: string | null
+          id: number
+          label: string
+        }
+        Insert: {
+          icon_name?: string | null
+          id: number
+          label: string
+        }
+        Update: {
+          icon_name?: string | null
+          id?: number
+          label?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

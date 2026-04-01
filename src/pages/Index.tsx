@@ -1,24 +1,50 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { SearchBar } from '@/components/SearchBar';
 import { ContactTable } from '@/components/ContactTable';
 import { ActivityLogModal } from '@/components/ActivityLogModal';
 import { ManualLocationDialog } from '@/components/ManualLocationDialog';
-import { mockContacts } from '@/data/mockData';
-import { Contact, HILDesignation, ConfidenceLevel } from '@/types/contact';
+import { Contact, ActivityLog, Lookups, DESIGNATION, CONFIDENCE } from '@/types/contact';
+import {
+  fetchContacts,
+  fetchLookups,
+  fetchActivityLogs,
+  updateContactDesignation,
+  toggleApproval,
+  bulkSetApproval,
+  insertActivityLog,
+  upsertContactFromCSV,
+} from '@/lib/supabase-queries';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
 const Index = () => {
-  const [contacts, setContacts] = useState<Contact[]>(mockContacts);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [lookups, setLookups] = useState<Lookups | null>(null);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceLevel | 'all'>('all');
+  const [confidenceFilter, setConfidenceFilter] = useState<string>('all');
   const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [selectedLogs, setSelectedLogs] = useState<ActivityLog[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [manualDialogContactId, setManualDialogContactId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const loadData = useCallback(async () => {
+    try {
+      const [contactsData, lookupsData] = await Promise.all([fetchContacts(), fetchLookups()]);
+      setContacts(contactsData);
+      setLookups(lookupsData);
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to load data.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const filteredContacts = useMemo(() => {
     let result = contacts;
@@ -27,109 +53,121 @@ const Index = () => {
       result = result.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
-          c.company.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q)
+          c.company_name.toLowerCase().includes(q) ||
+          c.email_address.toLowerCase().includes(q)
       );
     }
     if (confidenceFilter !== 'all') {
-      result = result.filter((c) => c.confidence === confidenceFilter);
+      result = result.filter((c) => c.confidence_id === Number(confidenceFilter));
     }
     if (approvalFilter === 'approved') {
-      result = result.filter((c) => c.approved);
+      result = result.filter((c) => c.is_approved);
     } else if (approvalFilter === 'pending') {
-      result = result.filter((c) => !c.approved);
+      result = result.filter((c) => !c.is_approved);
     }
     return result;
   }, [contacts, searchTerm, confidenceFilter, approvalFilter]);
 
   const allVisibleApproved = useMemo(
-    () => filteredContacts.length > 0 && filteredContacts.every((c) => c.approved),
+    () => filteredContacts.length > 0 && filteredContacts.every((c) => c.is_approved),
     [filteredContacts]
   );
 
-  const updateContact = useCallback((id: string, patch: Partial<Contact>) => {
-    setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    setSelectedContact((prev) => (prev?.id === id ? { ...prev, ...patch } : prev));
-  }, []);
-
   const handleToggleApproval = useCallback(
-    (id: string) => {
+    async (id: string) => {
       const contact = contacts.find((c) => c.id === id);
       if (!contact) return;
-      if (!contact.hilDesignation && !contact.approved) {
+      if (contact.designation_id === DESIGNATION.PENDING && !contact.is_approved) {
         toast({ title: 'Designation Required', description: 'Select a designation before approving.', variant: 'destructive' });
         return;
       }
-      updateContact(id, { approved: !contact.approved });
+      const newVal = !contact.is_approved;
+      try {
+        await toggleApproval(id, newVal);
+        setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, is_approved: newVal } : c)));
+        setSelectedContact((prev) => (prev?.id === id ? { ...prev, is_approved: newVal } : prev));
+      } catch {
+        toast({ title: 'Error', description: 'Failed to update approval.', variant: 'destructive' });
+      }
     },
-    [contacts, updateContact, toast]
+    [contacts, toast]
   );
 
   const handleApproveAll = useCallback(
-    (checked: boolean) => {
-      const visibleIds = new Set(filteredContacts.map((c) => c.id));
-      setContacts((prev) =>
-        prev.map((c) =>
-          visibleIds.has(c.id) && (c.hilDesignation || !checked)
-            ? { ...c, approved: checked }
-            : c
-        )
-      );
-      if (checked) {
-        const skipped = filteredContacts.filter((c) => !c.hilDesignation).length;
-        if (skipped > 0) {
-          toast({ title: 'Some Skipped', description: `${skipped} contact(s) need a designation before approval.` });
+    async (checked: boolean) => {
+      const eligible = filteredContacts.filter((c) => c.designation_id !== DESIGNATION.PENDING || !checked);
+      const ids = eligible.map((c) => c.id);
+      try {
+        await bulkSetApproval(ids, checked);
+        const idSet = new Set(ids);
+        setContacts((prev) => prev.map((c) => (idSet.has(c.id) ? { ...c, is_approved: checked } : c)));
+        if (checked) {
+          const skipped = filteredContacts.filter((c) => c.designation_id === DESIGNATION.PENDING).length;
+          if (skipped > 0) {
+            toast({ title: 'Some Skipped', description: `${skipped} contact(s) need a designation before approval.` });
+          }
         }
+      } catch {
+        toast({ title: 'Error', description: 'Failed to bulk update.', variant: 'destructive' });
       }
     },
     [filteredContacts, toast]
   );
 
   const handleHILChange = useCallback(
-    (id: string, value: HILDesignation | 'manual_new') => {
-      if (value === 'manual_new') {
+    async (id: string, designationId: number) => {
+      if (String(designationId) === 'manual_new' || isNaN(designationId)) {
         setManualDialogContactId(id);
         return;
       }
-      updateContact(id, { hilDesignation: value as HILDesignation });
+      try {
+        await updateContactDesignation(id, designationId);
+        setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, designation_id: designationId } : c)));
+        setSelectedContact((prev) => (prev?.id === id ? { ...prev, designation_id: designationId } : prev));
+      } catch {
+        toast({ title: 'Error', description: 'Failed to update designation.', variant: 'destructive' });
+      }
     },
-    [updateContact]
+    [toast]
   );
 
   const handleManualSubmit = useCallback(
-    (city: string, country: string, source: string) => {
+    async (city: string, country: string, source: string) => {
       if (!manualDialogContactId) return;
       const location = `${city}, ${country}`;
-      const newLog = {
-        id: `manual-${Date.now()}`,
-        contactId: manualDialogContactId,
-        eventType: 'manual_entry' as const,
-        queryUsed: source || 'No source provided',
-        sourceUrl: '',
-        resultSummary: `Manual location set to "${location}". Source: ${source || 'Not specified'}.`,
-        timestamp: new Date().toISOString(),
-      };
-      setContacts((prev) =>
-        prev.map((c) =>
-          c.id === manualDialogContactId
-            ? {
-                ...c,
-                hilDesignation: 'manual' as HILDesignation,
-                manualLocation: location,
-                manualSource: source,
-                activityLogs: [...c.activityLogs, newLog],
-              }
-            : c
-        )
-      );
-      setManualDialogContactId(null);
+      try {
+        await updateContactDesignation(manualDialogContactId, DESIGNATION.MANUAL, location, source);
+        await insertActivityLog({
+          contact_id: manualDialogContactId,
+          event_type_id: 5, // Manual Entry
+          query_used: source || 'No source provided',
+          source_url: '',
+          result_snippet: `Manual location set to "${location}". Source: ${source || 'Not specified'}.`,
+        });
+        setContacts((prev) =>
+          prev.map((c) =>
+            c.id === manualDialogContactId
+              ? { ...c, designation_id: DESIGNATION.MANUAL, manual_location: location, manual_source_note: source }
+              : c
+          )
+        );
+        setManualDialogContactId(null);
+      } catch {
+        toast({ title: 'Error', description: 'Failed to save manual location.', variant: 'destructive' });
+      }
     },
-    [manualDialogContactId]
+    [manualDialogContactId, toast]
   );
 
-  const handleRowClick = useCallback((contact: Contact) => {
+  const handleRowClick = useCallback(async (contact: Contact) => {
     setSelectedContact(contact);
     setModalOpen(true);
+    try {
+      const logs = await fetchActivityLogs(contact.id);
+      setSelectedLogs(logs);
+    } catch {
+      setSelectedLogs([]);
+    }
   }, []);
 
   const handleFetchContacts = useCallback(() => {
@@ -146,40 +184,40 @@ const Index = () => {
       if (!file) return;
       Papa.parse(file, {
         header: true,
-        complete: (results) => {
-          const newContacts: Contact[] = (results.data as any[])
-            .filter((row) => row.name && row.email)
-            .map((row, i) => ({
-              id: `csv-${Date.now()}-${i}`,
-              name: row.name || '',
-              company: row.company || '',
-              email: row.email || '',
-              personLocation: row.person_location || '',
-              companyLocation: row.company_location || '',
-              confidence:
-                row.person_location && row.company_location
-                  ? row.person_location === row.company_location
-                    ? 'high'
-                    : 'medium'
-                  : 'low',
-              hilDesignation: '',
-              manualLocation: '',
-              manualSource: '',
-              approved: false,
-              affinityId: row.affinity_id || '',
-              activityLogs: [],
-            }));
-          setContacts((prev) => [...prev, ...newContacts]);
-          toast({ title: 'CSV Imported', description: `${newContacts.length} contacts added.` });
+        complete: async (results) => {
+          const rows = (results.data as any[]).filter((row) => row.name && row.email);
+          let count = 0;
+          for (const row of rows) {
+            const personLoc = row.person_location || '';
+            const companyLoc = row.company_location || '';
+            let confId: number = CONFIDENCE.LOW;
+            if (personLoc && companyLoc) {
+              confId = personLoc === companyLoc ? CONFIDENCE.HIGH : CONFIDENCE.MEDIUM;
+            }
+            try {
+              await upsertContactFromCSV({
+                affinity_id: row.affinity_id || `csv-${Date.now()}-${count}`,
+                name: row.name,
+                company_name: row.company || '',
+                email_address: row.email,
+                person_location_raw: personLoc,
+                company_location_raw: companyLoc,
+                confidence_id: confId,
+              });
+              count++;
+            } catch { /* skip row */ }
+          }
+          await loadData();
+          toast({ title: 'CSV Imported', description: `${count} contacts upserted.` });
         },
       });
       e.target.value = '';
     },
-    [toast]
+    [toast, loadData]
   );
 
   const handlePushToAffinity = useCallback(() => {
-    const approved = contacts.filter((c) => c.approved);
+    const approved = contacts.filter((c) => c.is_approved);
     toast({
       title: 'Push to Affinity',
       description: `${approved.length} approved contacts ready to push. (placeholder)`,
@@ -187,26 +225,31 @@ const Index = () => {
   }, [contacts, toast]);
 
   const handleExportCSV = useCallback(() => {
-    const approved = contacts.filter((c) => c.approved);
+    const approved = contacts.filter((c) => c.is_approved);
     if (approved.length === 0) {
       toast({ title: 'No Records', description: 'Approve at least one contact to export.', variant: 'destructive' });
       return;
     }
     const csv = Papa.unparse(
-      approved.map((c) => ({
-        name: c.name,
-        company: c.company,
-        email: c.email,
-        person_location: c.personLocation,
-        company_location: c.companyLocation,
-        final_location: c.hilDesignation === 'manual' ? c.manualLocation
-          : c.hilDesignation === 'person_location' ? c.personLocation
-          : c.hilDesignation === 'company_location' ? c.companyLocation
-          : '',
-        confidence: c.confidence,
-        hil_designation: c.hilDesignation,
-        affinity_id: c.affinityId,
-      }))
+      approved.map((c) => {
+        let finalLocation = '';
+        switch (c.designation_id) {
+          case DESIGNATION.PERSON: finalLocation = c.person_location_raw; break;
+          case DESIGNATION.COMPANY: finalLocation = c.company_location_raw; break;
+          case DESIGNATION.MANUAL: finalLocation = c.manual_location; break;
+        }
+        return {
+          name: c.name,
+          company: c.company_name,
+          email: c.email_address,
+          person_location: c.person_location_raw,
+          company_location: c.company_location_raw,
+          final_location: finalLocation,
+          confidence: c.confidence_level?.label || '',
+          designation: c.designation_type?.label || '',
+          affinity_id: c.affinity_id || '',
+        };
+      })
     );
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -226,6 +269,15 @@ const Index = () => {
   const manualDialogContact = manualDialogContactId
     ? contacts.find((c) => c.id === manualDialogContactId)
     : null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container py-16 text-center text-muted-foreground text-sm">Loading…</main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -255,7 +307,7 @@ const Index = () => {
 
         <p className="text-[11px] text-muted-foreground tracking-wider uppercase">
           {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''} ·{' '}
-          {contacts.filter((c) => c.approved).length} approved
+          {contacts.filter((c) => c.is_approved).length} approved
         </p>
 
         <ContactTable
@@ -270,6 +322,7 @@ const Index = () => {
 
       <ActivityLogModal
         contact={currentSelectedContact}
+        activityLogs={selectedLogs}
         open={modalOpen}
         onOpenChange={setModalOpen}
         onApprove={handleToggleApproval}
