@@ -4,6 +4,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { ContactTable } from '@/components/ContactTable';
 import { ActivityLogModal } from '@/components/ActivityLogModal';
 import { ManualLocationDialog } from '@/components/ManualLocationDialog';
+import { AddContactDialog } from '@/components/AddContactDialog';
 import { Contact, ActivityLog, Lookups, DESIGNATION, CONFIDENCE } from '@/types/contact';
 import {
   fetchContacts,
