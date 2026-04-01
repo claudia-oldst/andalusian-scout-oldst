@@ -85,3 +85,20 @@ export async function upsertContactFromCSV(contact: {
     .upsert(contact, { onConflict: 'affinity_id' });
   if (error) throw error;
 }
+
+export async function updateContactLocations(
+  id: string,
+  personLocation: string,
+  companyLocation: string,
+  confidenceId: number
+) {
+  const { error } = await supabase
+    .from('contacts')
+    .update({
+      person_location_raw: personLocation,
+      company_location_raw: companyLocation,
+      confidence_id: confidenceId,
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
