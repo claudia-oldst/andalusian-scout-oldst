@@ -72,6 +72,35 @@ export function extractCompanyLocationFromMarkdown(markdown: string): string {
   return '';
 }
 
+/**
+ * Extract location from a LinkedIn search result description.
+ * Format: "Name. Company University. City of Cape Town, Western Cape, South Africa. 699 followers..."
+ */
+export function extractLocationFromDescription(description: string): string {
+  if (!description) return '';
+
+  // Split by periods and look for a segment that looks like a location
+  // (contains comma-separated parts with capitalized words, not too long)
+  const segments = description.split(/\.\s+/);
+  for (const seg of segments) {
+    const trimmed = seg.trim();
+    // Must have a comma (city, region pattern) and look geographic
+    if (
+      trimmed.includes(',') &&
+      trimmed.length < 80 &&
+      trimmed.length > 5 &&
+      // Should start with a capital letter or "City of"
+      /^(?:City of\s+)?[A-Z]/.test(trimmed) &&
+      // Should NOT contain typical non-location markers
+      !/followers|connections|See |posts|likes/i.test(trimmed)
+    ) {
+      return cleanLocation(trimmed);
+    }
+  }
+
+  return '';
+}
+
 function cleanLocation(raw: string): string {
   // Remove leading "City of " prefix for cleaner display
   let loc = raw.trim();
