@@ -1,57 +1,100 @@
 
 
-# Andalusian Credit Partners — Location Scout OSINT Platform
+# Updated Relational Lookup Schema — Full Implementation Plan
 
-## Visual Identity
-- **Header**: Sticky glassmorphic bar with `#194041` background, "Andalusian Credit Partners" branding
-- **Workspace**: `#C8CFD0` light gray background behind all cards
-- **Accent**: `#698CE4` periwinkle for primary buttons, focus rings, active states
-- **Secondary**: `#6B8A8C` / `#84ACAC` for borders, table headers, muted text
-- **Status**: `#446C8B` steel blue for verified/approved badges
-- **Typography**: Clean sans-serif, wide letter-spacing on uppercase headers for institutional feel
+## Database Schema
 
-## Layout & Core Components
+### Lookup Tables
 
-### 1. Sticky Header
-- Glassmorphic top bar with logo and two split-button groups:
-  - **"Find New Contacts"** — primary action + dropdown for "Upload Source CSV"
-  - **"Map Found Contacts"** — primary action + dropdown for "Export Verified CSV"
+**`confidence_levels`**
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `smallint` PK | 1=High, 2=Medium, 3=Low |
+| `label` | `text` NOT NULL | Display name |
+| `color_hex` | `text` | Badge color (e.g. `#10B981`) |
 
-### 2. Search & Filter Bar
-- Large centered search input with `#698CE4` focus ring
-- Real-time filtering by name, company, email
-- "Advanced Filters" button (expandable panel)
+**`designation_types`**
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `smallint` PK | 1=Person Source, 2=Company Source, 3=Manual Override, 4=Pending |
+| `label` | `text` NOT NULL | Display name |
 
-### 3. Institutional Data Grid
-- Columns: Name, Company, Email, Person Location, Company Location, Confidence Badge (High/Med/Low), HIL Designation dropdown, Approval checkbox
-- "Approve All" header checkbox that only affects visible/filtered rows
-- Confidence logic: matching locations = High, differing = Medium/Low
-- HIL dropdown options: Person Location, Company Location, Manual Entry
-- Row click opens Activity Log modal
+**`log_event_types`**
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `smallint` PK | 1=Google Dorking, 2=Firecrawl Scrape, 3=Website Crawl, 4=Affinity Sync, 5=Manual Entry |
+| `label` | `text` NOT NULL | Display name |
+| `icon_name` | `text` | Icon key for UI (search, linkedin, globe, refresh, edit) |
 
-### 4. Activity Log Modal
-- Vertical timeline showing the "Discovery Path"
-- Individual event cards for Google Dorking queries and Firecrawl crawl results
-- Shows exact search queries used and links to source URLs
-- In-modal footer with Approve button and HIL designation dropdown
+### Core Tables
 
-### 5. CSV Engine
-- **Import**: PapaParse-based CSV upload for new contacts
-- **Export**: Download approved records as CSV with Affinity IDs
+**`contacts`**
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK, default `gen_random_uuid()` | |
+| `affinity_id` | `text` UNIQUE | Dedup key for CRM imports |
+| `name` | `text` NOT NULL | |
+| `company_name` | `text` NOT NULL | |
+| `email_address` | `text` NOT NULL | |
+| `person_location_raw` | `text` default `''` | Scraped person location |
+| `company_location_raw` | `text` default `''` | Scraped company location |
+| `confidence_id` | `smallint` FK → `confidence_levels(id)`, default `3` | |
+| `designation_id` | `smallint` FK → `designation_types(id)`, default `4` | |
+| `manual_location` | `text` default `''` | User-entered city, country |
+| `manual_source_note` | `text` default `''` | Free-text source |
+| `is_approved` | `boolean` default `false` | |
+| `metadata` | `jsonb` default `'{}'` | Raw API response storage |
+| `created_at` | `timestamptz` default `now()` | |
+| `updated_at` | `timestamptz` default `now()` | Auto-updated via trigger |
 
-## Mock Data (Initial State)
-Three pre-populated contacts with varying confidence levels and detailed mock activity logs:
-1. Claudia @ Old St Labs — High confidence
-2. John Doe @ TechFlow — Medium confidence
-3. Sarah Chen @ Nexus Venture — Low confidence
+**`activity_logs`**
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK, default `gen_random_uuid()` | |
+| `contact_id` | `uuid` FK → `contacts(id)` ON DELETE CASCADE | |
+| `event_type_id` | `smallint` FK → `log_event_types(id)` | |
+| `query_used` | `text` default `''` | |
+| `source_url` | `text` default `''` | |
+| `result_snippet` | `text` default `''` | |
+| `created_at` | `timestamptz` default `now()` | |
 
-## Backend (Supabase)
-- `contacts` table: name, company, email, person_location, company_location, confidence, hil_designation, approved, affinity_id
-- `activity_logs` table: contact_id, event_type, query_used, source_url, result_summary, timestamp
-- Row-level security policies
+### Automation
+- `update_updated_at_column()` trigger on `contacts` BEFORE UPDATE
 
-## Integration Placeholders
-- **Affinity API**: Edge function stubs for fetching people records and pushing approved locations
-- **Firecrawl**: Edge function stubs for LinkedIn profile search + company domain crawl workflow
-- Both wired up with placeholder UI buttons, ready for real API keys
+### RLS
+- All 5 tables: RLS enabled, permissive anon policies for now (select/insert/update/delete)
+- To be locked down when authentication is added
+
+### Seed Data
+- 3 confidence levels, 4 designation types, 5 log event types
+- 3 mock contacts (Claudia, John, Sarah) with FK references
+- 6 activity log entries linked to contacts via UUID and event_type_id
+
+---
+
+## Frontend Refactor
+
+### Step 1: Migration
+Run the full SQL block (tables, trigger, RLS, seed data) via migration tool.
+
+### Step 2: Update TypeScript Types
+Replace `src/types/contact.ts` — use numeric IDs (`confidenceId`, `designationId`, `eventTypeId`) instead of string unions. Add interfaces for lookup types.
+
+### Step 3: Data Access Layer
+Create `src/lib/supabase-queries.ts`:
+- `fetchLookups()` — cache all 3 lookup tables on mount
+- `fetchContacts()` — join with lookups for display labels
+- `updateDesignation()`, `toggleApproval()`, `insertActivityLog()`, `upsertFromCSV()`
+
+### Step 4: Refactor Components
+- **Index.tsx**: Replace mock state with Supabase queries; load lookups once
+- **ContactTable.tsx**: Dropdown options from `designation_types`; approval gated on `designation_id !== 4`; resolve location text from designation
+- **ActivityLogModal.tsx**: Icons from `log_event_types.icon_name`; labels from lookup
+- **ConfidenceBadge.tsx**: Color from `confidence_levels.color_hex`
+- **SearchBar.tsx**: Filters use lookup IDs
+- **CSV export**: Computed `final_location` based on designation logic
+- **CSV import**: Upsert on `affinity_id`
+
+### Step 5: Cleanup
+Delete `src/data/mockData.ts`.
 
