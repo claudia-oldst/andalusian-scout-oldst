@@ -33,6 +33,7 @@ const Index = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [manualDialogContactId, setManualDialogContactId] = useState<string | null>(null);
   const [discoveryRunning, setDiscoveryRunning] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
