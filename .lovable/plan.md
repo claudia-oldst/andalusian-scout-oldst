@@ -1,100 +1,63 @@
 
 
-# Updated Relational Lookup Schema — Full Implementation Plan
+# Firecrawl OSINT Pipeline — Full Implementation
 
-## Database Schema
-
-### Lookup Tables
-
-**`confidence_levels`**
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | `smallint` PK | 1=High, 2=Medium, 3=Low |
-| `label` | `text` NOT NULL | Display name |
-| `color_hex` | `text` | Badge color (e.g. `#10B981`) |
-
-**`designation_types`**
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | `smallint` PK | 1=Person Source, 2=Company Source, 3=Manual Override, 4=Pending |
-| `label` | `text` NOT NULL | Display name |
-
-**`log_event_types`**
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | `smallint` PK | 1=Google Dorking, 2=Firecrawl Scrape, 3=Website Crawl, 4=Affinity Sync, 5=Manual Entry |
-| `label` | `text` NOT NULL | Display name |
-| `icon_name` | `text` | Icon key for UI (search, linkedin, globe, refresh, edit) |
-
-### Core Tables
-
-**`contacts`**
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | `uuid` PK, default `gen_random_uuid()` | |
-| `affinity_id` | `text` UNIQUE | Dedup key for CRM imports |
-| `name` | `text` NOT NULL | |
-| `company_name` | `text` NOT NULL | |
-| `email_address` | `text` NOT NULL | |
-| `person_location_raw` | `text` default `''` | Scraped person location |
-| `company_location_raw` | `text` default `''` | Scraped company location |
-| `confidence_id` | `smallint` FK → `confidence_levels(id)`, default `3` | |
-| `designation_id` | `smallint` FK → `designation_types(id)`, default `4` | |
-| `manual_location` | `text` default `''` | User-entered city, country |
-| `manual_source_note` | `text` default `''` | Free-text source |
-| `is_approved` | `boolean` default `false` | |
-| `metadata` | `jsonb` default `'{}'` | Raw API response storage |
-| `created_at` | `timestamptz` default `now()` | |
-| `updated_at` | `timestamptz` default `now()` | Auto-updated via trigger |
-
-**`activity_logs`**
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | `uuid` PK, default `gen_random_uuid()` | |
-| `contact_id` | `uuid` FK → `contacts(id)` ON DELETE CASCADE | |
-| `event_type_id` | `smallint` FK → `log_event_types(id)` | |
-| `query_used` | `text` default `''` | |
-| `source_url` | `text` default `''` | |
-| `result_snippet` | `text` default `''` | |
-| `created_at` | `timestamptz` default `now()` | |
-
-### Automation
-- `update_updated_at_column()` trigger on `contacts` BEFORE UPDATE
-
-### RLS
-- All 5 tables: RLS enabled, permissive anon policies for now (select/insert/update/delete)
-- To be locked down when authentication is added
-
-### Seed Data
-- 3 confidence levels, 4 designation types, 5 log event types
-- 3 mock contacts (Claudia, John, Sarah) with FK references
-- 6 activity log entries linked to contacts via UUID and event_type_id
+## Overview
+Connect Firecrawl, create edge functions for search and scrape, build a frontend discovery workflow that auto-locates contacts using Google Dorking and website crawling, and logs all results to `activity_logs`.
 
 ---
 
-## Frontend Refactor
+## Step 1: Connect Firecrawl
+Link the existing Firecrawl connection (`std_01kkekkwc3ey9trfj4rrq0a1nd`) to the project so the `FIRECRAWL_API_KEY` secret is available in edge functions.
 
-### Step 1: Migration
-Run the full SQL block (tables, trigger, RLS, seed data) via migration tool.
+## Step 2: Create Edge Functions
 
-### Step 2: Update TypeScript Types
-Replace `src/types/contact.ts` — use numeric IDs (`confidenceId`, `designationId`, `eventTypeId`) instead of string unions. Add interfaces for lookup types.
+**`supabase/functions/firecrawl-search/index.ts`** — Google Dorking
+- Accepts `{ query: string, limit?: number }` 
+- Calls Firecrawl Search API (`https://api.firecrawl.dev/v1/search`) with the query
+- Returns search results (title, URL, description, optional markdown)
+- Used for queries like `"John Smith" site:linkedin.com location`
 
-### Step 3: Data Access Layer
-Create `src/lib/supabase-queries.ts`:
-- `fetchLookups()` — cache all 3 lookup tables on mount
-- `fetchContacts()` — join with lookups for display labels
-- `updateDesignation()`, `toggleApproval()`, `insertActivityLog()`, `upsertFromCSV()`
+**`supabase/functions/firecrawl-scrape/index.ts`** — Website/Page Scrape
+- Accepts `{ url: string, formats?: string[] }`
+- Calls Firecrawl Scrape API (`https://api.firecrawl.dev/v1/scrape`)
+- Returns markdown content from a specific URL
+- Used to extract location info from company websites or LinkedIn profiles
 
-### Step 4: Refactor Components
-- **Index.tsx**: Replace mock state with Supabase queries; load lookups once
-- **ContactTable.tsx**: Dropdown options from `designation_types`; approval gated on `designation_id !== 4`; resolve location text from designation
-- **ActivityLogModal.tsx**: Icons from `log_event_types.icon_name`; labels from lookup
-- **ConfidenceBadge.tsx**: Color from `confidence_levels.color_hex`
-- **SearchBar.tsx**: Filters use lookup IDs
-- **CSV export**: Computed `final_location` based on designation logic
-- **CSV import**: Upsert on `affinity_id`
+Both functions include CORS headers, input validation, and proper error handling.
 
-### Step 5: Cleanup
-Delete `src/data/mockData.ts`.
+## Step 3: Frontend API Layer
+
+**`src/lib/api/firecrawl.ts`** — Client-side wrapper
+- `firecrawlApi.search(query, options)` — invokes the search edge function
+- `firecrawlApi.scrape(url, options)` — invokes the scrape edge function
+- Both return typed `{ success, data?, error? }` responses
+
+## Step 4: Discovery Workflow in Index.tsx
+
+Replace the "Find Contacts" placeholder with a real OSINT pipeline:
+
+1. User clicks **Find Contacts** — iterates through contacts with `designation_id === 4` (Pending)
+2. For each pending contact, runs two searches via the search edge function:
+   - `"[name]" "[company]" location` — Google Dorking for person location
+   - `"[company]" headquarters office location` — company location lookup
+3. Updates `person_location_raw` and `company_location_raw` on the contact with snippets from results
+4. Recalculates `confidence_id` based on whether person/company locations match
+5. Logs each search to `activity_logs` with event_type_id 1 (Google Dorking) including query, source URL, and result snippet
+6. Shows a progress toast as it processes contacts
+7. Reloads data when complete
+
+## Step 5: Add Discovery Button to Activity Log Modal
+
+Add a "Run Discovery" button inside the contact detail modal that triggers the same search flow for a single contact, so users can re-run OSINT on individual records.
+
+---
+
+## Technical Details
+
+- Firecrawl is **not** a gateway connector — we call the API directly using `FIRECRAWL_API_KEY` from `Deno.env.get()`
+- Edge functions use `Deno.serve()` with CORS headers from `@supabase/supabase-js/cors`
+- The search query construction uses Google Dorking patterns (site filters, quoted names)
+- `supabase-queries.ts` will get a new `updateContactLocations()` function for batch-updating raw location fields
+- Rate limiting: sequential processing with a small delay between contacts to avoid hitting Firecrawl limits
 
