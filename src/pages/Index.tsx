@@ -18,7 +18,7 @@ import {
   updateContactLocations,
 } from '@/lib/supabase-queries';
 import { firecrawlApi } from '@/lib/api/firecrawl';
-import { extractLocationFromMarkdown, extractCompanyLocationFromMarkdown, extractLocationFromDescription } from '@/lib/extract-location';
+import { extractLocationFromMarkdown, extractCompanyLocationFromMarkdown, extractLocationFromDescription, extractLocationFromGoogleHtml } from '@/lib/extract-location';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
@@ -179,40 +179,54 @@ const Index = () => {
   const runDiscoveryForContact = useCallback(async (contact: Contact) => {
     const personQuery = `site:linkedin.com "${contact.name}" "${contact.company_name}"`;
     const companyQuery = `"${contact.company_name}" headquarters office location`;
+    // Build the Google search URL so the HIL can open the same SERP
+    const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(personQuery)}`;
 
     let personLoc = contact.person_location_raw || '';
     let companyLoc = contact.company_location_raw || '';
-    let personUrl = '';
     let companyUrl = '';
     let personSnippet = 'No results found.';
     let companySnippet = 'No results found.';
 
     try {
-      // Search LinkedIn for the person's profile
-      const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
-      if (personResult.success && personResult.data?.length > 0) {
-        // Find the first result with a linkedin.com URL
-        const linkedInResult = personResult.data.find((r: any) =>
-          r.url && r.url.includes('linkedin.com/in/')
-        ) || personResult.data[0];
-        personUrl = linkedInResult.url || '';
+      // Scrape the Google SERP page to extract the LinkedIn location snippet
+      const scrapeResult = await firecrawlApi.scrape(googleSearchUrl, {
+        formats: ['html'],
+        onlyMainContent: false,
+      });
 
-        // Extract location from search description (LinkedIn can't be scraped directly)
-        // Description format: "Name. Company University. City of Cape Town, Western Cape, South Africa. 699 followers..."
-        const description = linkedInResult.description || '';
-        const mdLoc = extractLocationFromMarkdown(description) || extractLocationFromDescription(description);
-        personLoc = mdLoc || personLoc;
-        personSnippet = description.slice(0, 500);
+      if (scrapeResult.success) {
+        const html = scrapeResult.data?.html || '';
+        const locFromHtml = extractLocationFromGoogleHtml(html);
+        if (locFromHtml) {
+          personLoc = locFromHtml;
+          personSnippet = locFromHtml;
+        } else {
+          personSnippet = 'Google SERP scraped but YrbPuc element not found.';
+        }
+      } else {
+        // Fallback: use Firecrawl search API description
+        console.warn('Google SERP scrape failed, falling back to search API:', scrapeResult.error);
+        const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
+        if (personResult.success && personResult.data?.length > 0) {
+          const linkedInResult = personResult.data.find((r: any) =>
+            r.url && r.url.includes('linkedin.com/in/')
+          ) || personResult.data[0];
+          const description = linkedInResult.description || '';
+          const extracted = extractLocationFromDescription(description);
+          personLoc = extracted || personLoc;
+          personSnippet = description.slice(0, 500);
+        }
       }
     } catch (err) {
-      console.error('Person search failed:', err);
+      console.error('Person location discovery failed:', err);
     }
 
     await insertActivityLog({
       contact_id: contact.id,
-      event_type_id: 1, // Google Dorking
+      event_type_id: 1, // Google Dorking · LinkedIn Scrape
       query_used: personQuery,
-      source_url: personUrl,
+      source_url: googleSearchUrl,
       result_snippet: personSnippet,
     });
 

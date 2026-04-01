@@ -101,6 +101,29 @@ export function extractLocationFromDescription(description: string): string {
   return '';
 }
 
+/**
+ * Extract location from Google SERP HTML by finding the YrbPuc div class
+ * that Google uses for LinkedIn location metadata.
+ * Pattern: <div class="YrbPuc"><span>Cape Town, Western Cape, South Africa</span>
+ */
+export function extractLocationFromGoogleHtml(html: string): string {
+  if (!html) return '';
+
+  // Match the YrbPuc class div containing location span
+  const match = html.match(/<div[^>]*class="[^"]*YrbPuc[^"]*"[^>]*>\s*<span[^>]*>([^<]+)<\/span>/i);
+  if (match?.[1]) {
+    return cleanLocation(match[1]);
+  }
+
+  // Broader fallback: look for any element with YrbPuc class
+  const broader = html.match(/YrbPuc[^>]*>([^<]+)</i);
+  if (broader?.[1]) {
+    return cleanLocation(broader[1]);
+  }
+
+  return '';
+}
+
 function cleanLocation(raw: string): string {
   // Remove leading "City of " prefix for cleaner display
   let loc = raw.trim();
