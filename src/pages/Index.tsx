@@ -188,41 +188,21 @@ const Index = () => {
     let companySnippet = 'No results found.';
 
     try {
-      // Step 1: Search LinkedIn for the person's profile
+      // Search LinkedIn for the person's profile
       const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
       if (personResult.success && personResult.data?.length > 0) {
         // Find the first result with a linkedin.com URL
         const linkedInResult = personResult.data.find((r: any) =>
-          r.url && r.url.includes('linkedin.com')
+          r.url && r.url.includes('linkedin.com/in/')
         ) || personResult.data[0];
         personUrl = linkedInResult.url || '';
 
-        // Step 2: Scrape the LinkedIn profile page to get full markdown
-        if (personUrl && personUrl.includes('linkedin.com')) {
-          try {
-            const scrapeResult = await firecrawlApi.scrape(personUrl, {
-              formats: ['markdown'],
-            });
-            const scrapedMd = (scrapeResult as any).data?.markdown || (scrapeResult as any).markdown || '';
-            if (scrapedMd) {
-              const mdLoc = extractLocationFromMarkdown(scrapedMd);
-              if (mdLoc) personLoc = mdLoc;
-              personSnippet = scrapedMd.slice(0, 500);
-            }
-          } catch (scrapeErr) {
-            console.error('LinkedIn scrape failed, falling back to search data:', scrapeErr);
-          }
-        }
-
-        // Fallback: use search result description if scrape didn't yield a location
-        if (!personLoc || personLoc === contact.person_location_raw) {
-          const fallbackMd = linkedInResult.markdown || '';
-          const mdLoc = extractLocationFromMarkdown(fallbackMd);
-          personLoc = mdLoc || linkedInResult.description || personLoc;
-          if (personSnippet === 'No results found.') {
-            personSnippet = (fallbackMd || linkedInResult.description || '').slice(0, 500);
-          }
-        }
+        // Extract location from search description (LinkedIn can't be scraped directly)
+        // Description format: "Name. Company University. City of Cape Town, Western Cape, South Africa. 699 followers..."
+        const description = linkedInResult.description || '';
+        const mdLoc = extractLocationFromMarkdown(description) || extractLocationFromDescription(description);
+        personLoc = mdLoc || personLoc;
+        personSnippet = description.slice(0, 500);
       }
     } catch (err) {
       console.error('Person search failed:', err);
