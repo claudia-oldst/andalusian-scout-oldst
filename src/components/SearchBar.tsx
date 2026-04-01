@@ -26,6 +26,8 @@ interface SearchBarProps {
   onUploadCSV: () => void;
   onPushToAffinity: () => void;
   onExportCSV: () => void;
+  onRunBulkDiscovery: () => void;
+  discoveryRunning?: boolean;
 }
 
 const SplitButton = ({
