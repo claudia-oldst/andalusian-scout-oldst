@@ -84,6 +84,8 @@ export const SearchBar = ({
   onUploadCSV,
   onPushToAffinity,
   onExportCSV,
+  onRunBulkDiscovery,
+  discoveryRunning,
 }: SearchBarProps) => {
   return (
     <div className="flex items-center gap-2 w-full">
