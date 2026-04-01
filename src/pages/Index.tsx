@@ -190,7 +190,7 @@ const Index = () => {
           for (const row of rows) {
             const personLoc = row.person_location || '';
             const companyLoc = row.company_location || '';
-            let confId = CONFIDENCE.LOW;
+            let confId: number = CONFIDENCE.LOW;
             if (personLoc && companyLoc) {
               confId = personLoc === companyLoc ? CONFIDENCE.HIGH : CONFIDENCE.MEDIUM;
             }
