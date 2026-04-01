@@ -177,7 +177,7 @@ const Index = () => {
   }, []);
 
   const runDiscoveryForContact = useCallback(async (contact: Contact) => {
-    const personQuery = `"${contact.name}" "${contact.company_name}" location city`;
+    const personQuery = `site:linkedin.com "${contact.name}" "${contact.company_name}"`;
     const companyQuery = `"${contact.company_name}" headquarters office location`;
 
     let personLoc = contact.person_location_raw || '';
@@ -188,18 +188,41 @@ const Index = () => {
     let companySnippet = 'No results found.';
 
     try {
-      const personResult = await firecrawlApi.search(personQuery, {
-        limit: 3,
-        scrapeOptions: { formats: ['markdown'] },
-      });
+      // Step 1: Search LinkedIn for the person's profile
+      const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
       if (personResult.success && personResult.data?.length > 0) {
-        const top = personResult.data[0];
-        personUrl = top.url || '';
-        // Try extracting clean location from markdown first
-        const mdLoc = extractLocationFromMarkdown(top.markdown || '');
-        personLoc = mdLoc || top.description || top.title || '';
-        // Keep full context for audit trail
-        personSnippet = (top.markdown || top.description || '').slice(0, 500);
+        // Find the first result with a linkedin.com URL
+        const linkedInResult = personResult.data.find((r: any) =>
+          r.url && r.url.includes('linkedin.com')
+        ) || personResult.data[0];
+        personUrl = linkedInResult.url || '';
+
+        // Step 2: Scrape the LinkedIn profile page to get full markdown
+        if (personUrl && personUrl.includes('linkedin.com')) {
+          try {
+            const scrapeResult = await firecrawlApi.scrape(personUrl, {
+              formats: ['markdown'],
+            });
+            const scrapedMd = (scrapeResult as any).data?.markdown || (scrapeResult as any).markdown || '';
+            if (scrapedMd) {
+              const mdLoc = extractLocationFromMarkdown(scrapedMd);
+              if (mdLoc) personLoc = mdLoc;
+              personSnippet = scrapedMd.slice(0, 500);
+            }
+          } catch (scrapeErr) {
+            console.error('LinkedIn scrape failed, falling back to search data:', scrapeErr);
+          }
+        }
+
+        // Fallback: use search result description if scrape didn't yield a location
+        if (!personLoc || personLoc === contact.person_location_raw) {
+          const fallbackMd = linkedInResult.markdown || '';
+          const mdLoc = extractLocationFromMarkdown(fallbackMd);
+          personLoc = mdLoc || linkedInResult.description || personLoc;
+          if (personSnippet === 'No results found.') {
+            personSnippet = (fallbackMd || linkedInResult.description || '').slice(0, 500);
+          }
+        }
       }
     } catch (err) {
       console.error('Person search failed:', err);
@@ -222,6 +245,7 @@ const Index = () => {
         const top = companyResult.data[0];
         companyUrl = top.url || '';
         const mdLoc = extractCompanyLocationFromMarkdown(top.markdown || '');
+        // Fallback: use description (usually cleaner) rather than full markdown
         companyLoc = mdLoc || top.description || top.title || '';
         companySnippet = (top.markdown || top.description || '').slice(0, 500);
       }
