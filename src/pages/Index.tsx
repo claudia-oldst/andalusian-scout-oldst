@@ -4,6 +4,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { ContactTable } from '@/components/ContactTable';
 import { ActivityLogModal } from '@/components/ActivityLogModal';
 import { ManualLocationDialog } from '@/components/ManualLocationDialog';
+import { AddContactDialog } from '@/components/AddContactDialog';
 import { Contact, ActivityLog, Lookups, DESIGNATION, CONFIDENCE } from '@/types/contact';
 import {
   fetchContacts,
@@ -32,6 +33,7 @@ const Index = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [manualDialogContactId, setManualDialogContactId] = useState<string | null>(null);
   const [discoveryRunning, setDiscoveryRunning] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -337,6 +339,28 @@ const Index = () => {
     });
   }, [contacts, toast]);
 
+  const handleAddContact = useCallback(
+    async (data: { affinity_id: string; name: string; company_name: string; email_address: string }) => {
+      try {
+        await upsertContactFromCSV({
+          affinity_id: data.affinity_id,
+          name: data.name,
+          company_name: data.company_name,
+          email_address: data.email_address,
+          person_location_raw: '',
+          company_location_raw: '',
+          confidence_id: CONFIDENCE.LOW,
+        });
+        await loadData();
+        setAddContactOpen(false);
+        toast({ title: 'Contact Added', description: `${data.name} has been added.` });
+      } catch {
+        toast({ title: 'Error', description: 'Failed to add contact.', variant: 'destructive' });
+      }
+    },
+    [loadData, toast]
+  );
+
   const handleExportCSV = useCallback(() => {
     const approved = contacts.filter((c) => c.is_approved);
     if (approved.length === 0) {
@@ -413,6 +437,7 @@ const Index = () => {
           approvalFilter={approvalFilter}
           onApprovalFilterChange={setApprovalFilter}
           onFetchContacts={handleFetchContacts}
+          onAddContact={() => setAddContactOpen(true)}
           onUploadCSV={handleUploadCSV}
           onPushToAffinity={handlePushToAffinity}
           onExportCSV={handleExportCSV}
@@ -453,6 +478,12 @@ const Index = () => {
         onOpenChange={(open) => { if (!open) setManualDialogContactId(null); }}
         contactName={manualDialogContact?.name || ''}
         onSubmit={handleManualSubmit}
+      />
+
+      <AddContactDialog
+        open={addContactOpen}
+        onOpenChange={setAddContactOpen}
+        onSubmit={handleAddContact}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { Search, ChevronDown, Upload, Download, ArrowUpFromLine, Radar } from 'lucide-react';
+import { Search, ChevronDown, Upload, Download, ArrowUpFromLine, Radar, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +23,7 @@ interface SearchBarProps {
   approvalFilter: 'all' | 'approved' | 'pending';
   onApprovalFilterChange: (value: 'all' | 'approved' | 'pending') => void;
   onFetchContacts: () => void;
+  onAddContact: () => void;
   onUploadCSV: () => void;
   onPushToAffinity: () => void;
   onExportCSV: () => void;
@@ -34,16 +35,12 @@ const SplitButton = ({
   label,
   icon: Icon,
   onClick,
-  dropdownLabel,
-  dropdownIcon: DropdownIcon,
-  onDropdownClick,
+  dropdownItems,
 }: {
   label: string;
   icon: React.ElementType;
   onClick: () => void;
-  dropdownLabel: string;
-  dropdownIcon: React.ElementType;
-  onDropdownClick: () => void;
+  dropdownItems: { label: string; icon: React.ElementType; onClick: () => void }[];
 }) => (
   <div className="flex">
     <Button
@@ -64,10 +61,12 @@ const SplitButton = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onDropdownClick}>
-          <DropdownIcon className="h-4 w-4 mr-2" />
-          {dropdownLabel}
-        </DropdownMenuItem>
+        {dropdownItems.map((item) => (
+          <DropdownMenuItem key={item.label} onClick={item.onClick}>
+            <item.icon className="h-4 w-4 mr-2" />
+            {item.label}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   </div>
@@ -81,6 +80,7 @@ export const SearchBar = ({
   approvalFilter,
   onApprovalFilterChange,
   onFetchContacts,
+  onAddContact,
   onUploadCSV,
   onPushToAffinity,
   onExportCSV,
@@ -124,17 +124,18 @@ export const SearchBar = ({
         label="Find Contacts"
         icon={Search}
         onClick={onFetchContacts}
-        dropdownLabel="Upload Source CSV"
-        dropdownIcon={Upload}
-        onDropdownClick={onUploadCSV}
+        dropdownItems={[
+          { label: 'Upload Source CSV', icon: Upload, onClick: onUploadCSV },
+          { label: 'Add Contact Manually', icon: UserPlus, onClick: onAddContact },
+        ]}
       />
       <SplitButton
         label="Map Contacts"
         icon={ArrowUpFromLine}
         onClick={onPushToAffinity}
-        dropdownLabel="Export Verified CSV"
-        dropdownIcon={Download}
-        onDropdownClick={onExportCSV}
+        dropdownItems={[
+          { label: 'Export Verified CSV', icon: Download, onClick: onExportCSV },
+        ]}
       />
       <Button
         onClick={onRunBulkDiscovery}
