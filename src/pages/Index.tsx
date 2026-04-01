@@ -225,7 +225,7 @@ const Index = () => {
     });
 
     // Compute confidence
-    let confId = CONFIDENCE.LOW;
+    let confId: number = CONFIDENCE.LOW;
     if (personLoc && companyLoc) {
       const pNorm = personLoc.toLowerCase().trim();
       const cNorm = companyLoc.toLowerCase().trim();
