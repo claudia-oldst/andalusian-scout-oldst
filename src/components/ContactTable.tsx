@@ -45,6 +45,8 @@ export const ContactTable = ({
   onApproveAll,
   onHILChange,
   onRowClick,
+  onRunDiscovery,
+  discoveryRunning,
   allVisibleApproved,
 }: ContactTableProps) => {
   return (
