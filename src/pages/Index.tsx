@@ -440,6 +440,8 @@ const Index = () => {
         onOpenChange={setModalOpen}
         onApprove={handleToggleApproval}
         onHILChange={handleHILChange}
+        onRunDiscovery={handleRunSingleDiscovery}
+        discoveryRunning={discoveryRunning}
       />
 
       <ManualLocationDialog
