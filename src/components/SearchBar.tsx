@@ -82,6 +82,7 @@ export const SearchBar = ({
   approvalFilter,
   onApprovalFilterChange,
   onFetchContacts,
+  onAddContact,
   onUploadCSV,
   onPushToAffinity,
   onExportCSV,
