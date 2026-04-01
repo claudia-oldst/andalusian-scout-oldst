@@ -14,13 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ConfidenceLevel } from '@/types/contact';
 
 interface SearchBarProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
-  confidenceFilter: ConfidenceLevel | 'all';
-  onConfidenceFilterChange: (value: ConfidenceLevel | 'all') => void;
+  confidenceFilter: string;
+  onConfidenceFilterChange: (value: string) => void;
   approvalFilter: 'all' | 'approved' | 'pending';
   onApprovalFilterChange: (value: 'all' | 'approved' | 'pending') => void;
   onFetchContacts: () => void;
@@ -95,15 +94,15 @@ export const SearchBar = ({
           className="pl-9 h-9 bg-card border-border focus-visible:ring-accent text-sm"
         />
       </div>
-      <Select value={confidenceFilter} onValueChange={(v) => onConfidenceFilterChange(v as ConfidenceLevel | 'all')}>
+      <Select value={confidenceFilter} onValueChange={onConfidenceFilterChange}>
         <SelectTrigger className="h-9 w-[130px] text-xs border-border bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Confidence</SelectItem>
-          <SelectItem value="high">High</SelectItem>
-          <SelectItem value="medium">Medium</SelectItem>
-          <SelectItem value="low">Low</SelectItem>
+          <SelectItem value="1">High</SelectItem>
+          <SelectItem value="2">Medium</SelectItem>
+          <SelectItem value="3">Low</SelectItem>
         </SelectContent>
       </Select>
       <Select value={approvalFilter} onValueChange={(v) => onApprovalFilterChange(v as 'all' | 'approved' | 'pending')}>

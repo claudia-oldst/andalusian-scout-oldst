@@ -1,4 +1,4 @@
-import { Contact, HILDesignation } from '@/types/contact';
+import { Contact, DESIGNATION } from '@/types/contact';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -17,11 +17,20 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
+function resolveDisplayLocation(contact: Contact): string {
+  switch (contact.designation_id) {
+    case DESIGNATION.PERSON: return contact.person_location_raw;
+    case DESIGNATION.COMPANY: return contact.company_location_raw;
+    case DESIGNATION.MANUAL: return contact.manual_location;
+    default: return 'Select…';
+  }
+}
+
 interface ContactTableProps {
   contacts: Contact[];
   onToggleApproval: (id: string) => void;
   onApproveAll: (checked: boolean) => void;
-  onHILChange: (id: string, value: HILDesignation) => void;
+  onHILChange: (id: string, designationId: number) => void;
   onRowClick: (contact: Contact) => void;
   allVisibleApproved: boolean;
 }
@@ -73,45 +82,39 @@ export const ContactTable = ({
               >
                 <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
-                    checked={contact.approved}
-                    disabled={!contact.hilDesignation}
+                    checked={contact.is_approved}
+                    disabled={contact.designation_id === DESIGNATION.PENDING}
                     onCheckedChange={() => onToggleApproval(contact.id)}
-                    title={!contact.hilDesignation ? 'Select a designation first' : undefined}
+                    title={contact.designation_id === DESIGNATION.PENDING ? 'Select a designation first' : undefined}
                   />
                 </TableCell>
                 <TableCell className="font-medium text-foreground text-sm py-2.5">{contact.name}</TableCell>
-                <TableCell className="text-muted-foreground text-sm py-2.5">{contact.company}</TableCell>
-                <TableCell className="text-muted-foreground text-xs py-2.5">{contact.email}</TableCell>
-                <TableCell className="text-sm py-2.5">{contact.personLocation}</TableCell>
-                <TableCell className="text-sm py-2.5">{contact.companyLocation}</TableCell>
+                <TableCell className="text-muted-foreground text-sm py-2.5">{contact.company_name}</TableCell>
+                <TableCell className="text-muted-foreground text-xs py-2.5">{contact.email_address}</TableCell>
+                <TableCell className="text-sm py-2.5">{contact.person_location_raw}</TableCell>
+                <TableCell className="text-sm py-2.5">{contact.company_location_raw}</TableCell>
                 <TableCell className="py-2.5">
-                  <ConfidenceBadge level={contact.confidence} />
+                  <ConfidenceBadge confidenceId={contact.confidence_id} />
                 </TableCell>
                 <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
                   <Select
-                    value={contact.hilDesignation || undefined}
-                    onValueChange={(val) => onHILChange(contact.id, val as HILDesignation)}
+                    value={contact.designation_id !== DESIGNATION.PENDING ? String(contact.designation_id) : undefined}
+                    onValueChange={(val) => onHILChange(contact.id, Number(val))}
                   >
                     <SelectTrigger className="h-7 w-[160px] text-xs border-border">
                       <SelectValue placeholder="Select…">
-                        {contact.hilDesignation === 'manual' && contact.manualLocation
-                          ? contact.manualLocation
-                          : contact.hilDesignation === 'person_location'
-                          ? contact.personLocation
-                          : contact.hilDesignation === 'company_location'
-                          ? contact.companyLocation
-                          : 'Select…'}
+                        {resolveDisplayLocation(contact)}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {contact.personLocation && (
-                        <SelectItem value="person_location">{contact.personLocation}</SelectItem>
+                      {contact.person_location_raw && (
+                        <SelectItem value={String(DESIGNATION.PERSON)}>{contact.person_location_raw}</SelectItem>
                       )}
-                      {contact.companyLocation && contact.companyLocation !== contact.personLocation && (
-                        <SelectItem value="company_location">{contact.companyLocation}</SelectItem>
+                      {contact.company_location_raw && contact.company_location_raw !== contact.person_location_raw && (
+                        <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw}</SelectItem>
                       )}
-                      {contact.manualLocation && (
-                        <SelectItem value="manual">{contact.manualLocation}</SelectItem>
+                      {contact.manual_location && (
+                        <SelectItem value={String(DESIGNATION.MANUAL)}>{contact.manual_location}</SelectItem>
                       )}
                       <SelectItem value="manual_new">Other…</SelectItem>
                     </SelectContent>
