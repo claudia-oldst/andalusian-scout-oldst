@@ -35,16 +35,12 @@ const SplitButton = ({
   label,
   icon: Icon,
   onClick,
-  dropdownLabel,
-  dropdownIcon: DropdownIcon,
-  onDropdownClick,
+  dropdownItems,
 }: {
   label: string;
   icon: React.ElementType;
   onClick: () => void;
-  dropdownLabel: string;
-  dropdownIcon: React.ElementType;
-  onDropdownClick: () => void;
+  dropdownItems: { label: string; icon: React.ElementType; onClick: () => void }[];
 }) => (
   <div className="flex">
     <Button
@@ -65,10 +61,12 @@ const SplitButton = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onDropdownClick}>
-          <DropdownIcon className="h-4 w-4 mr-2" />
-          {dropdownLabel}
-        </DropdownMenuItem>
+        {dropdownItems.map((item) => (
+          <DropdownMenuItem key={item.label} onClick={item.onClick}>
+            <item.icon className="h-4 w-4 mr-2" />
+            {item.label}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   </div>
