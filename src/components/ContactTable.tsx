@@ -34,6 +34,8 @@ interface ContactTableProps {
   onApproveAll: (checked: boolean) => void;
   onHILChange: (id: string, designationId: number) => void;
   onRowClick: (contact: Contact) => void;
+  onRunDiscovery?: (contactId: string) => void;
+  discoveryRunning?: boolean;
   allVisibleApproved: boolean;
 }
 
