@@ -431,6 +431,8 @@ const Index = () => {
           onApproveAll={handleApproveAll}
           onHILChange={handleHILChange}
           onRowClick={handleRowClick}
+          onRunDiscovery={handleRunSingleDiscovery}
+          discoveryRunning={discoveryRunning}
           allVisibleApproved={allVisibleApproved}
         />
       </main>

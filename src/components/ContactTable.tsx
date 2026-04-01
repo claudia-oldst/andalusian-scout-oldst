@@ -103,28 +103,42 @@ export const ContactTable = ({
                   <ConfidenceBadge confidenceId={contact.confidence_id} />
                 </TableCell>
                 <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    value={contact.designation_id !== DESIGNATION.PENDING ? String(contact.designation_id) : undefined}
-                    onValueChange={(val) => onHILChange(contact.id, Number(val))}
-                  >
-                    <SelectTrigger className="h-7 w-[160px] text-xs border-border">
-                      <SelectValue placeholder="Select…">
-                        {resolveDisplayLocation(contact)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contact.person_location_raw && (
-                        <SelectItem value={String(DESIGNATION.PERSON)}>{contact.person_location_raw}</SelectItem>
-                      )}
-                      {contact.company_location_raw && contact.company_location_raw !== contact.person_location_raw && (
-                        <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw}</SelectItem>
-                      )}
-                      {contact.manual_location && (
-                        <SelectItem value={String(DESIGNATION.MANUAL)}>{contact.manual_location}</SelectItem>
-                      )}
-                      <SelectItem value="manual_new">Other…</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-1">
+                    <Select
+                      value={contact.designation_id !== DESIGNATION.PENDING ? String(contact.designation_id) : undefined}
+                      onValueChange={(val) => onHILChange(contact.id, Number(val))}
+                    >
+                      <SelectTrigger className="h-7 w-[160px] text-xs border-border">
+                        <SelectValue placeholder="Select…">
+                          {resolveDisplayLocation(contact)}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contact.person_location_raw && (
+                          <SelectItem value={String(DESIGNATION.PERSON)}>{contact.person_location_raw}</SelectItem>
+                        )}
+                        {contact.company_location_raw && contact.company_location_raw !== contact.person_location_raw && (
+                          <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw}</SelectItem>
+                        )}
+                        {contact.manual_location && (
+                          <SelectItem value={String(DESIGNATION.MANUAL)}>{contact.manual_location}</SelectItem>
+                        )}
+                        <SelectItem value="manual_new">Other…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {onRunDiscovery && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        disabled={discoveryRunning}
+                        onClick={() => onRunDiscovery(contact.id)}
+                        title="Re-run OSINT discovery for this contact"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${discoveryRunning ? 'animate-spin' : ''}`} />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))
