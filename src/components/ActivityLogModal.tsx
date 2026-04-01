@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ExternalLink, Search, Globe, RefreshCw, MapPin, Linkedin, Pencil } from 'lucide-react';
+import { ExternalLink, Search, Globe, RefreshCw, MapPin, Linkedin, Pencil, Radar } from 'lucide-react';
 import { format } from 'date-fns';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -42,6 +42,8 @@ interface ActivityLogModalProps {
   onOpenChange: (open: boolean) => void;
   onApprove: (id: string) => void;
   onHILChange: (id: string, designationId: number) => void;
+  onRunDiscovery?: (contactId: string) => void;
+  discoveryRunning?: boolean;
 }
 
 function resolveDisplayLocation(contact: Contact): string {
@@ -60,6 +62,8 @@ export const ActivityLogModal = ({
   onOpenChange,
   onApprove,
   onHILChange,
+  onRunDiscovery,
+  discoveryRunning,
 }: ActivityLogModalProps) => {
   if (!contact) return null;
 
@@ -77,14 +81,31 @@ export const ActivityLogModal = ({
         </DialogHeader>
 
         <div className="space-y-1">
-          <h3 className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground mb-4">
-            Discovery Path
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground">
+              Discovery Path
+            </h3>
+            {onRunDiscovery && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onRunDiscovery(contact.id)}
+                disabled={discoveryRunning}
+                className="text-xs tracking-wider uppercase gap-1.5"
+              >
+                <Radar className="h-3.5 w-3.5" />
+                {discoveryRunning ? 'Running…' : 'Run Discovery'}
+              </Button>
+            )}
+          </div>
 
           <div className="relative pl-6">
             <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
 
             <div className="space-y-6">
+              {activityLogs.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No activity logs yet. Run discovery to start.</p>
+              )}
               {activityLogs.map((log) => {
                 const iconName = log.event_type?.icon_name || 'search';
                 const Icon = iconMap[iconName] || Search;

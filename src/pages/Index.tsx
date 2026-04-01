@@ -14,7 +14,9 @@ import {
   bulkSetApproval,
   insertActivityLog,
   upsertContactFromCSV,
+  updateContactLocations,
 } from '@/lib/supabase-queries';
+import { firecrawlApi } from '@/lib/api/firecrawl';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
@@ -29,6 +31,7 @@ const Index = () => {
   const [selectedLogs, setSelectedLogs] = useState<ActivityLog[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [manualDialogContactId, setManualDialogContactId] = useState<string | null>(null);
+  const [discoveryRunning, setDiscoveryRunning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -170,9 +173,119 @@ const Index = () => {
     }
   }, []);
 
-  const handleFetchContacts = useCallback(() => {
-    toast({ title: 'Affinity Fetch', description: 'Fetching contacts from Affinity CRM… (placeholder)' });
-  }, [toast]);
+  const runDiscoveryForContact = useCallback(async (contact: Contact) => {
+    const personQuery = `"${contact.name}" "${contact.company_name}" location city`;
+    const companyQuery = `"${contact.company_name}" headquarters office location`;
+
+    let personLoc = contact.person_location_raw || '';
+    let companyLoc = contact.company_location_raw || '';
+    let personUrl = '';
+    let companyUrl = '';
+    let personSnippet = 'No results found.';
+    let companySnippet = 'No results found.';
+
+    try {
+      const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
+      if (personResult.success && personResult.data?.length > 0) {
+        const top = personResult.data[0];
+        personLoc = top.description || top.title || '';
+        personUrl = top.url || '';
+        personSnippet = personLoc.slice(0, 300);
+      }
+    } catch (err) {
+      console.error('Person search failed:', err);
+    }
+
+    await insertActivityLog({
+      contact_id: contact.id,
+      event_type_id: 1, // Google Dorking
+      query_used: personQuery,
+      source_url: personUrl,
+      result_snippet: personSnippet,
+    });
+
+    try {
+      const companyResult = await firecrawlApi.search(companyQuery, { limit: 3 });
+      if (companyResult.success && companyResult.data?.length > 0) {
+        const top = companyResult.data[0];
+        companyLoc = top.description || top.title || '';
+        companyUrl = top.url || '';
+        companySnippet = companyLoc.slice(0, 300);
+      }
+    } catch (err) {
+      console.error('Company search failed:', err);
+    }
+
+    await insertActivityLog({
+      contact_id: contact.id,
+      event_type_id: 1,
+      query_used: companyQuery,
+      source_url: companyUrl,
+      result_snippet: companySnippet,
+    });
+
+    // Compute confidence
+    let confId: number = CONFIDENCE.LOW;
+    if (personLoc && companyLoc) {
+      const pNorm = personLoc.toLowerCase().trim();
+      const cNorm = companyLoc.toLowerCase().trim();
+      confId = pNorm === cNorm || pNorm.includes(cNorm) || cNorm.includes(pNorm)
+        ? CONFIDENCE.HIGH
+        : CONFIDENCE.MEDIUM;
+    }
+
+    await updateContactLocations(contact.id, personLoc, companyLoc, confId);
+
+    return { personLoc, companyLoc, confId };
+  }, []);
+
+  const handleFetchContacts = useCallback(async () => {
+    const pending = contacts.filter((c) => c.designation_id === DESIGNATION.PENDING);
+    if (pending.length === 0) {
+      toast({ title: 'No Pending', description: 'All contacts already have a designation.' });
+      return;
+    }
+
+    setDiscoveryRunning(true);
+    toast({ title: 'Discovery Started', description: `Running OSINT on ${pending.length} pending contact(s)…` });
+
+    let processed = 0;
+    for (const contact of pending) {
+      try {
+        await runDiscoveryForContact(contact);
+        processed++;
+      } catch (err) {
+        console.error(`Discovery failed for ${contact.name}:`, err);
+      }
+      // Small delay between contacts to avoid rate limits
+      if (pending.indexOf(contact) < pending.length - 1) {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+
+    await loadData();
+    setDiscoveryRunning(false);
+    toast({ title: 'Discovery Complete', description: `Processed ${processed}/${pending.length} contacts.` });
+  }, [contacts, toast, loadData, runDiscoveryForContact]);
+
+  const handleRunSingleDiscovery = useCallback(async (contactId: string) => {
+    const contact = contacts.find((c) => c.id === contactId);
+    if (!contact) return;
+
+    setDiscoveryRunning(true);
+    try {
+      await runDiscoveryForContact(contact);
+      await loadData();
+      // Reload logs for the modal
+      const logs = await fetchActivityLogs(contactId);
+      setSelectedLogs(logs);
+      toast({ title: 'Discovery Complete', description: `Updated location data for ${contact.name}.` });
+    } catch {
+      toast({ title: 'Error', description: 'Discovery failed.', variant: 'destructive' });
+    } finally {
+      setDiscoveryRunning(false);
+    }
+  }, [contacts, loadData, toast, runDiscoveryForContact]);
 
   const handleUploadCSV = useCallback(() => {
     fileInputRef.current?.click();
@@ -327,6 +440,8 @@ const Index = () => {
         onOpenChange={setModalOpen}
         onApprove={handleToggleApproval}
         onHILChange={handleHILChange}
+        onRunDiscovery={handleRunSingleDiscovery}
+        discoveryRunning={discoveryRunning}
       />
 
       <ManualLocationDialog
