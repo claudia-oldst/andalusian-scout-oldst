@@ -1,37 +1,40 @@
 
 
-# Fix: Extract Clean Location from Firecrawl Search via Markdown
+# Fix: LinkedIn-Only Person Location Discovery
 
 ## Problem
-The discovery workflow stores raw search `description` text as the location. For LinkedIn results, this includes the person's name, follower count, connections, etc. — not just the location.
+The person search query `"Name" "Company" location city` returns non-LinkedIn results (e.g., RocketReach). The extraction regex for `defaultLocalizedName` never matches because the markdown isn't from LinkedIn. The company search also returns irrelevant results (Companies House descriptions stored as raw location).
 
 ## Solution
-Use Firecrawl search with `scrapeOptions: { formats: ['markdown'] }` to get markdown content from the top result, then extract the location from the `defaultLocalizedName` field pattern found in LinkedIn's markdown output.
+Two-step pipeline for person location:
+1. **Search** with `site:linkedin.com "Name" "Company"` to find the LinkedIn profile URL
+2. **Scrape** that LinkedIn URL using `firecrawlApi.scrape()` to get full page markdown
+3. **Extract** location from the scraped markdown using the existing `extractLocationFromMarkdown` (which targets `defaultLocalizedName`)
+
+Company search stays as a separate search query (no LinkedIn restriction).
 
 ## Changes
 
-### 1. `src/pages/Index.tsx` — `runDiscoveryForContact`
+### `src/pages/Index.tsx` — `runDiscoveryForContact`
 
-**Person location extraction (lines 189-196):**
-- Change the search call to include `scrapeOptions: { formats: ['markdown'] }` so the top result includes markdown content
-- After getting the top result, check for `top.markdown` 
-- Parse the markdown with a regex to find `defaultLocalizedName` values — pattern: `"defaultLocalizedName"\s*:\s*"([^"]+)"` or the plain-text equivalent that appears in LinkedIn markdown (e.g., the location span text near the person's name)
-- Also add a fallback regex for the pattern `City of X, Region, Country` or similar geographic text
-- Use the extracted location string as `personLoc` instead of the raw description
-- Keep the full description/markdown in `personSnippet` for the activity log audit trail
+**Person location (lines 180, 190-206):**
+- Change query to: `site:linkedin.com "${contact.name}" "${contact.company_name}"`
+- After search returns results, find the first result with a `linkedin.com` URL
+- Call `firecrawlApi.scrape(linkedinUrl, { formats: ['markdown'] })` on that URL
+- Extract location from the **scraped** markdown using `extractLocationFromMarkdown`
+- Fall back to search result markdown/description if scrape fails
+- Store scraped markdown snippet in activity log
 
-**Company location extraction (lines 209-219):**
-- Same approach: request markdown in scrapeOptions, parse for headquarters/location patterns
+**Company location (lines 216-229):**
+- Keep the existing company search query pattern
+- Fix the fallback: when `extractCompanyLocationFromMarkdown` returns empty, use the `description` field (which is usually a clean summary) instead of the full markdown. But also add a `Registered office address` regex to the company extractor since Companies House data contains that pattern.
 
-### 2. Helper function — `extractLocationFromMarkdown`
+### `src/lib/extract-location.ts` — `extractCompanyLocationFromMarkdown`
 
-Add a utility function (in Index.tsx or a separate util) that:
-1. Searches markdown for `defaultLocalizedName` pattern → returns the value if found
-2. Falls back to looking for geographic patterns (city/region/country text near location-related keywords)
-3. Returns empty string if nothing found
+Add a pattern for "Registered office address" followed by the address text (covers Companies House results seen in the network data).
 
-This keeps the extraction logic clean and testable.
-
-### No edge function changes needed
-The search edge function already passes `scrapeOptions` through to Firecrawl. The scrape edge function is not used in this flow.
+## Technical Notes
+- The scrape step costs 1 additional Firecrawl credit per contact but ensures we get the actual LinkedIn page content with `defaultLocalizedName`
+- Search with `site:linkedin.com` reliably returns LinkedIn profile URLs as top results
+- The `firecrawlApi.scrape` function and edge function already exist and work
 
