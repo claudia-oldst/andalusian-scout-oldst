@@ -1,63 +1,37 @@
 
 
-# Firecrawl OSINT Pipeline — Full Implementation
+# Fix: Extract Clean Location from Firecrawl Search via Markdown
 
-## Overview
-Connect Firecrawl, create edge functions for search and scrape, build a frontend discovery workflow that auto-locates contacts using Google Dorking and website crawling, and logs all results to `activity_logs`.
+## Problem
+The discovery workflow stores raw search `description` text as the location. For LinkedIn results, this includes the person's name, follower count, connections, etc. — not just the location.
 
----
+## Solution
+Use Firecrawl search with `scrapeOptions: { formats: ['markdown'] }` to get markdown content from the top result, then extract the location from the `defaultLocalizedName` field pattern found in LinkedIn's markdown output.
 
-## Step 1: Connect Firecrawl
-Link the existing Firecrawl connection (`std_01kkekkwc3ey9trfj4rrq0a1nd`) to the project so the `FIRECRAWL_API_KEY` secret is available in edge functions.
+## Changes
 
-## Step 2: Create Edge Functions
+### 1. `src/pages/Index.tsx` — `runDiscoveryForContact`
 
-**`supabase/functions/firecrawl-search/index.ts`** — Google Dorking
-- Accepts `{ query: string, limit?: number }` 
-- Calls Firecrawl Search API (`https://api.firecrawl.dev/v1/search`) with the query
-- Returns search results (title, URL, description, optional markdown)
-- Used for queries like `"John Smith" site:linkedin.com location`
+**Person location extraction (lines 189-196):**
+- Change the search call to include `scrapeOptions: { formats: ['markdown'] }` so the top result includes markdown content
+- After getting the top result, check for `top.markdown` 
+- Parse the markdown with a regex to find `defaultLocalizedName` values — pattern: `"defaultLocalizedName"\s*:\s*"([^"]+)"` or the plain-text equivalent that appears in LinkedIn markdown (e.g., the location span text near the person's name)
+- Also add a fallback regex for the pattern `City of X, Region, Country` or similar geographic text
+- Use the extracted location string as `personLoc` instead of the raw description
+- Keep the full description/markdown in `personSnippet` for the activity log audit trail
 
-**`supabase/functions/firecrawl-scrape/index.ts`** — Website/Page Scrape
-- Accepts `{ url: string, formats?: string[] }`
-- Calls Firecrawl Scrape API (`https://api.firecrawl.dev/v1/scrape`)
-- Returns markdown content from a specific URL
-- Used to extract location info from company websites or LinkedIn profiles
+**Company location extraction (lines 209-219):**
+- Same approach: request markdown in scrapeOptions, parse for headquarters/location patterns
 
-Both functions include CORS headers, input validation, and proper error handling.
+### 2. Helper function — `extractLocationFromMarkdown`
 
-## Step 3: Frontend API Layer
+Add a utility function (in Index.tsx or a separate util) that:
+1. Searches markdown for `defaultLocalizedName` pattern → returns the value if found
+2. Falls back to looking for geographic patterns (city/region/country text near location-related keywords)
+3. Returns empty string if nothing found
 
-**`src/lib/api/firecrawl.ts`** — Client-side wrapper
-- `firecrawlApi.search(query, options)` — invokes the search edge function
-- `firecrawlApi.scrape(url, options)` — invokes the scrape edge function
-- Both return typed `{ success, data?, error? }` responses
+This keeps the extraction logic clean and testable.
 
-## Step 4: Discovery Workflow in Index.tsx
-
-Replace the "Find Contacts" placeholder with a real OSINT pipeline:
-
-1. User clicks **Find Contacts** — iterates through contacts with `designation_id === 4` (Pending)
-2. For each pending contact, runs two searches via the search edge function:
-   - `"[name]" "[company]" location` — Google Dorking for person location
-   - `"[company]" headquarters office location` — company location lookup
-3. Updates `person_location_raw` and `company_location_raw` on the contact with snippets from results
-4. Recalculates `confidence_id` based on whether person/company locations match
-5. Logs each search to `activity_logs` with event_type_id 1 (Google Dorking) including query, source URL, and result snippet
-6. Shows a progress toast as it processes contacts
-7. Reloads data when complete
-
-## Step 5: Add Discovery Button to Activity Log Modal
-
-Add a "Run Discovery" button inside the contact detail modal that triggers the same search flow for a single contact, so users can re-run OSINT on individual records.
-
----
-
-## Technical Details
-
-- Firecrawl is **not** a gateway connector — we call the API directly using `FIRECRAWL_API_KEY` from `Deno.env.get()`
-- Edge functions use `Deno.serve()` with CORS headers from `@supabase/supabase-js/cors`
-- The search query construction uses Google Dorking patterns (site filters, quoted names)
-- `supabase-queries.ts` will get a new `updateContactLocations()` function for batch-updating raw location fields
-- Rate limiting: sequential processing with a small delay between contacts to avoid hitting Firecrawl limits
+### No edge function changes needed
+The search edge function already passes `scrapeOptions` through to Firecrawl. The scrape edge function is not used in this flow.
 
