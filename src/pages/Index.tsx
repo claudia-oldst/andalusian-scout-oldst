@@ -14,7 +14,9 @@ import {
   bulkSetApproval,
   insertActivityLog,
   upsertContactFromCSV,
+  updateContactLocations,
 } from '@/lib/supabase-queries';
+import { firecrawlApi } from '@/lib/api/firecrawl';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
