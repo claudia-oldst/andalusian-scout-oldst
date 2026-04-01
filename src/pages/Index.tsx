@@ -31,6 +31,7 @@ const Index = () => {
   const [selectedLogs, setSelectedLogs] = useState<ActivityLog[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [manualDialogContactId, setManualDialogContactId] = useState<string | null>(null);
+  const [discoveryRunning, setDiscoveryRunning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
