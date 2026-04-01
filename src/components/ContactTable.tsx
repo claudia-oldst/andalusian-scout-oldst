@@ -1,6 +1,7 @@
 import { Contact, DESIGNATION } from '@/types/contact';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -16,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { RefreshCw } from 'lucide-react';
 
 function resolveDisplayLocation(contact: Contact): string {
   switch (contact.designation_id) {
