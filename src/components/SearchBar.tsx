@@ -124,17 +124,18 @@ export const SearchBar = ({
         label="Find Contacts"
         icon={Search}
         onClick={onFetchContacts}
-        dropdownLabel="Upload Source CSV"
-        dropdownIcon={Upload}
-        onDropdownClick={onUploadCSV}
+        dropdownItems={[
+          { label: 'Upload Source CSV', icon: Upload, onClick: onUploadCSV },
+          { label: 'Add Contact Manually', icon: UserPlus, onClick: onAddContact },
+        ]}
       />
       <SplitButton
         label="Map Contacts"
         icon={ArrowUpFromLine}
         onClick={onPushToAffinity}
-        dropdownLabel="Export Verified CSV"
-        dropdownIcon={Download}
-        onDropdownClick={onExportCSV}
+        dropdownItems={[
+          { label: 'Export Verified CSV', icon: Download, onClick: onExportCSV },
+        ]}
       />
       <Button
         onClick={onRunBulkDiscovery}
