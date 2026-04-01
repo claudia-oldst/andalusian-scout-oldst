@@ -479,6 +479,12 @@ const Index = () => {
         contactName={manualDialogContact?.name || ''}
         onSubmit={handleManualSubmit}
       />
+
+      <AddContactDialog
+        open={addContactOpen}
+        onOpenChange={setAddContactOpen}
+        onSubmit={handleAddContact}
+      />
     </div>
   );
 };
