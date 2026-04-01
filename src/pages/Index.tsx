@@ -416,6 +416,8 @@ const Index = () => {
           onUploadCSV={handleUploadCSV}
           onPushToAffinity={handlePushToAffinity}
           onExportCSV={handleExportCSV}
+          onRunBulkDiscovery={handleFetchContacts}
+          discoveryRunning={discoveryRunning}
         />
 
         <p className="text-[11px] text-muted-foreground tracking-wider uppercase">
