@@ -177,7 +177,21 @@ export const ContactTable = ({
                 <TableCell className="font-medium text-foreground text-sm py-2.5">{contact.name}</TableCell>
                 <TableCell className="text-muted-foreground text-sm py-2.5">{contact.company_name}</TableCell>
                 <TableCell className="text-muted-foreground text-xs py-2.5">{contact.email_address}</TableCell>
-                <TableCell className="text-sm py-2.5">{contact.person_location_raw}</TableCell>
+                <TableCell className="text-sm py-2.5">
+                  {contact.person_location_raw ? (
+                    <a
+                      href={`https://www.google.com/search?q=site%3Alinkedin.com+%22${encodeURIComponent(contact.name)}%22+%22${encodeURIComponent(contact.company_name)}%22+location`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {contact.person_location_raw}
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground text-xs italic">—</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-sm py-2.5">
                   <CompanyLocationCell contact={contact} />
                 </TableCell>
