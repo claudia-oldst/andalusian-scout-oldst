@@ -55,7 +55,7 @@ export const SearchBar = ({
         />
       </div>
       <Select value={confidenceFilter} onValueChange={onConfidenceFilterChange}>
-        <SelectTrigger className="h-9 w-[130px] text-xs border-border bg-card">
+        <SelectTrigger className="h-10 w-[140px] text-sm border-border bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
