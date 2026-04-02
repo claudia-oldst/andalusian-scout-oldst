@@ -43,6 +43,15 @@ export interface ActivityLog {
   event_type?: LogEventTypeLookup;
 }
 
+export interface Company {
+  id: string;
+  domain: string;
+  name: string | null;
+  hq_locations: string[];
+  website_url: string | null;
+  last_scraped_at: string | null;
+}
+
 export interface Contact {
   id: string;
   affinity_id: string | null;
@@ -50,7 +59,8 @@ export interface Contact {
   company_name: string;
   email_address: string;
   person_location_raw: string;
-  company_location_raw: string;
+  company_location_raw: string[];
+  company_id: string | null;
   confidence_id: number;
   designation_id: number;
   manual_location: string;
