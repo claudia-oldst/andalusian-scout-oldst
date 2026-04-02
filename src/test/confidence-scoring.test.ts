@@ -3,8 +3,8 @@ import { CONFIDENCE, DESIGNATION } from '@/types/contact';
 
 describe('Confidence scoring logic', () => {
   function computeConfidence(personLoc: string, companyLocs: string[]) {
-    let confId = CONFIDENCE.LOW;
-    let autoDesignation = DESIGNATION.PENDING;
+    let confId: number = CONFIDENCE.LOW;
+    let autoDesignation: number = DESIGNATION.PENDING;
 
     if (personLoc) {
       const pNorm = personLoc.toLowerCase().trim();
