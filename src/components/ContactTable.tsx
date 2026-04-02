@@ -121,7 +121,7 @@ export const ContactTable = ({
               (col) => (
                 <TableHead
                   key={col}
-                  className="text-[10px] tracking-[0.14em] uppercase font-semibold text-muted-foreground py-2.5"
+                  className="text-[11px] tracking-[0.14em] uppercase font-semibold text-muted-foreground py-3"
                 >
                   {col}
                 </TableHead>
