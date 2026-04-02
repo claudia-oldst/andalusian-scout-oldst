@@ -35,15 +35,24 @@ function resolveDisplayLocation(contact: Contact): string {
 }
 
 /** Find the company location that matches person_location_raw */
+/** Extract city name (first comma-separated segment) for fuzzy matching */
+function extractCity(loc: string): string {
+  return loc.split(',')[0].toLowerCase().trim();
+}
+
 function getMatchingCompanyLocation(contact: Contact): { match: string | null; others: string[] } {
   const personLoc = contact.person_location_raw?.toLowerCase().trim();
   if (!personLoc || contact.company_location_raw.length === 0) {
     return { match: null, others: contact.company_location_raw };
   }
 
+  const personCity = extractCity(contact.person_location_raw || '');
+
   const matchIdx = contact.company_location_raw.findIndex((loc) => {
     const cNorm = loc.toLowerCase().trim();
-    return personLoc === cNorm || personLoc.includes(cNorm) || cNorm.includes(personLoc);
+    const cCity = extractCity(loc);
+    // Exact match, substring match, or city-level match
+    return personLoc === cNorm || personLoc.includes(cNorm) || cNorm.includes(personLoc) || personCity === cCity;
   });
 
   if (matchIdx === -1) {
