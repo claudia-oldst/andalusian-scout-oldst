@@ -22,7 +22,7 @@ import { RefreshCw } from 'lucide-react';
 function resolveDisplayLocation(contact: Contact): string {
   switch (contact.designation_id) {
     case DESIGNATION.PERSON: return contact.person_location_raw;
-    case DESIGNATION.COMPANY: return contact.company_location_raw;
+    case DESIGNATION.COMPANY: return contact.company_location_raw.join(', ');
     case DESIGNATION.MANUAL: return contact.manual_location;
     default: return 'Select…';
   }
