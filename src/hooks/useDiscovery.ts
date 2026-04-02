@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Contact, DESIGNATION, CONFIDENCE } from '@/types/contact';
+import { Contact, DESIGNATION, CONFIDENCE, EVENT_TYPE } from '@/types/contact';
 import {
   insertActivityLog,
   updateContactLocations,
@@ -13,8 +13,12 @@ import {
 import { firecrawlApi, extractLocationsViaLLM } from '@/lib/api/firecrawl';
 import { extractCompanyLocationsFromMarkdown, extractLocationFromDescription, extractLocationFromGoogleHtml } from '@/lib/extract-location';
 import { extractDomainFromEmail, extractRawDomain } from '@/lib/extract-domain';
+import { extractCity } from '@/lib/location-matching';
 import { useToast } from '@/hooks/use-toast';
 import type { ActivityLog } from '@/types/contact';
+
+/** Staleness threshold for company cache (6 months) */
+const COMPANY_CACHE_TTL_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
 export function useDiscovery(invalidateContacts: () => void) {
   const [discoveryRunning, setDiscoveryRunning] = useState(false);
@@ -62,11 +66,12 @@ export function useDiscovery(invalidateContacts: () => void) {
       }
     } catch (err) {
       console.error('Person location discovery failed:', err);
+      personSnippet = `Person discovery error: ${err instanceof Error ? err.message : 'Unknown'}`;
     }
 
     await insertActivityLog({
       contact_id: contact.id,
-      event_type_id: 1,
+      event_type_id: EVENT_TYPE.OSINT_DISCOVERY,
       query_used: personQuery,
       source_url: googleSearchUrl,
       result_snippet: personSnippet,
@@ -79,9 +84,8 @@ export function useDiscovery(invalidateContacts: () => void) {
     if (rawDomain && domainUrl) {
       try {
         const existingCompany = await fetchCompanyByDomain(rawDomain);
-        const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
         const isStale = !existingCompany?.last_scraped_at ||
-          (Date.now() - new Date(existingCompany.last_scraped_at).getTime()) > SIX_MONTHS_MS;
+          (Date.now() - new Date(existingCompany.last_scraped_at).getTime()) > COMPANY_CACHE_TTL_MS;
 
         if (existingCompany && !isStale) {
           companyLocs = existingCompany.hq_locations;
@@ -156,7 +160,7 @@ export function useDiscovery(invalidateContacts: () => void) {
 
     await insertActivityLog({
       contact_id: contact.id,
-      event_type_id: 1,
+      event_type_id: EVENT_TYPE.OSINT_DISCOVERY,
       query_used: rawDomain ? `map+scrape: ${domainUrl}` : 'N/A (free email)',
       source_url: companySourceUrl,
       result_snippet: companySnippet,
@@ -168,10 +172,10 @@ export function useDiscovery(invalidateContacts: () => void) {
 
     if (personLoc) {
       const pNorm = personLoc.toLowerCase().trim();
-      const pCity = pNorm.split(',')[0].trim();
+      const pCity = extractCity(personLoc);
       const matchingLoc = companyLocs.find((loc) => {
         const cNorm = loc.toLowerCase().trim();
-        const cCity = cNorm.split(',')[0].trim();
+        const cCity = extractCity(loc);
         return pNorm === cNorm || pNorm.includes(cNorm) || cNorm.includes(pNorm) || pCity === cCity;
       });
 
@@ -200,14 +204,13 @@ export function useDiscovery(invalidateContacts: () => void) {
     try {
       const pendingIds = await fetchAllContactIds(DESIGNATION.PENDING);
       if (pendingIds.length === 0) {
-        toast({ title: 'No Pending', description: 'All contacts already have a designation.' });
+        toast({ title: 'No Pending Contacts', description: 'All contacts already have a designation assigned.' });
         return;
       }
 
       setDiscoveryRunning(true);
       toast({ title: 'Discovery Started', description: `Running OSINT on ${pendingIds.length} pending contact(s)…` });
 
-      // Fetch full contact objects for pending contacts
       const pendingContacts = await fetchContactsByIds(pendingIds);
 
       let processed = 0;
@@ -225,10 +228,11 @@ export function useDiscovery(invalidateContacts: () => void) {
 
       invalidateContacts();
       setDiscoveryRunning(false);
-      toast({ title: 'Discovery Complete', description: `Processed ${processed}/${pendingContacts.length} contacts.` });
+      toast({ title: 'Discovery Complete', description: `Processed ${processed}/${pendingContacts.length} contacts successfully.` });
     } catch (err) {
       setDiscoveryRunning(false);
-      toast({ title: 'Error', description: 'Discovery failed.', variant: 'destructive' });
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred';
+      toast({ title: 'Discovery Failed', description: `Could not complete bulk discovery: ${msg}`, variant: 'destructive' });
     }
   }, [toast, invalidateContacts, runDiscoveryForContact]);
 
@@ -240,8 +244,9 @@ export function useDiscovery(invalidateContacts: () => void) {
       const logs = await fetchActivityLogs(contact.id);
       toast({ title: 'Discovery Complete', description: `Updated location data for ${contact.name}.` });
       return logs;
-    } catch {
-      toast({ title: 'Error', description: 'Discovery failed.', variant: 'destructive' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred';
+      toast({ title: 'Discovery Failed', description: `Could not run discovery for ${contact.name}: ${msg}`, variant: 'destructive' });
       return [];
     } finally {
       setDiscoveryRunning(false);

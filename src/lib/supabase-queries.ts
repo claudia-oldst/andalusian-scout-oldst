@@ -135,25 +135,9 @@ export async function bulkUpsertContacts(contacts: {
   confidence_id: number;
 }[]) {
   if (contacts.length === 0) return;
-  // Supabase supports bulk upsert natively
   const { error } = await supabase
     .from('contacts')
     .upsert(contacts, { onConflict: 'affinity_id' });
-  if (error) throw error;
-}
-
-export async function upsertContactFromCSV(contact: {
-  affinity_id: string;
-  name: string;
-  company_name: string;
-  email_address: string;
-  person_location_raw: string;
-  company_location_raw: string[];
-  confidence_id: number;
-}) {
-  const { error } = await supabase
-    .from('contacts')
-    .upsert(contact, { onConflict: 'affinity_id' });
   if (error) throw error;
 }
 

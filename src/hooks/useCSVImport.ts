@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { Contact, CONFIDENCE } from '@/types/contact';
-import { bulkUpsertContacts, upsertContactFromCSV } from '@/lib/supabase-queries';
+import { bulkUpsertContacts } from '@/lib/supabase-queries';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
@@ -20,7 +20,9 @@ export function useCSVImport(contacts: Contact[], invalidateContacts: () => void
         header: true,
         complete: async (results) => {
           const rows = (results.data as any[]).filter((row) => row.name && row.email);
-          const batchRows = rows.map((row, idx) => {
+          const skippedCount = (results.data as any[]).length - rows.length;
+
+          const batchRows = rows.map((row) => {
             const personLoc = row.person_location || '';
             const companyLoc = row.company_location || '';
             let confId: number = CONFIDENCE.LOW;
@@ -28,7 +30,7 @@ export function useCSVImport(contacts: Contact[], invalidateContacts: () => void
               confId = personLoc === companyLoc ? CONFIDENCE.HIGH : CONFIDENCE.MEDIUM;
             }
             return {
-              affinity_id: row.affinity_id || `csv-${Date.now()}-${idx}`,
+              affinity_id: row.affinity_id || crypto.randomUUID(),
               name: row.name,
               company_name: row.company || '',
               email_address: row.email,
@@ -39,15 +41,16 @@ export function useCSVImport(contacts: Contact[], invalidateContacts: () => void
           });
 
           try {
-            // Batch upsert in chunks of 100
             const chunkSize = 100;
             for (let i = 0; i < batchRows.length; i += chunkSize) {
               await bulkUpsertContacts(batchRows.slice(i, i + chunkSize));
             }
             invalidateContacts();
-            toast({ title: 'CSV Imported', description: `${batchRows.length} contacts upserted.` });
-          } catch {
-            toast({ title: 'Error', description: 'CSV import failed.', variant: 'destructive' });
+            const skippedMsg = skippedCount > 0 ? ` (${skippedCount} rows skipped — missing name or email)` : '';
+            toast({ title: 'CSV Imported', description: `${batchRows.length} contacts upserted.${skippedMsg}` });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Unknown error';
+            toast({ title: 'Import Failed', description: `CSV import failed: ${msg}`, variant: 'destructive' });
           }
         },
       });
@@ -59,7 +62,7 @@ export function useCSVImport(contacts: Contact[], invalidateContacts: () => void
   const handleExportCSV = useCallback(() => {
     const approved = contacts.filter((c) => c.is_approved);
     if (approved.length === 0) {
-      toast({ title: 'No Records', description: 'Approve at least one contact to export.', variant: 'destructive' });
+      toast({ title: 'No Approved Records', description: 'Approve at least one contact before exporting.', variant: 'destructive' });
       return;
     }
     const csv = Papa.unparse(
@@ -96,7 +99,7 @@ export function useCSVImport(contacts: Contact[], invalidateContacts: () => void
   const handleAddContact = useCallback(
     async (data: { affinity_id: string; name: string; company_name: string; email_address: string }) => {
       try {
-        await upsertContactFromCSV({
+        await bulkUpsertContacts([{
           affinity_id: data.affinity_id,
           name: data.name,
           company_name: data.company_name,
@@ -104,12 +107,13 @@ export function useCSVImport(contacts: Contact[], invalidateContacts: () => void
           person_location_raw: '',
           company_location_raw: [],
           confidence_id: CONFIDENCE.LOW,
-        });
+        }]);
         invalidateContacts();
         toast({ title: 'Contact Added', description: `${data.name} has been added.` });
         return true;
-      } catch {
-        toast({ title: 'Error', description: 'Failed to add contact.', variant: 'destructive' });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        toast({ title: 'Failed to Add Contact', description: `Could not add ${data.name}: ${msg}`, variant: 'destructive' });
         return false;
       }
     },

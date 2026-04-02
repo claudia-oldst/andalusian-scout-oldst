@@ -12,6 +12,7 @@ import { useDiscovery } from '@/hooks/useDiscovery';
 import { useCSVImport } from '@/hooks/useCSVImport';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Index = () => {
@@ -88,13 +89,9 @@ const Index = () => {
     [contacts, handleSingleDiscovery]
   );
 
-  const handlePushToAffinity = useCallback(() => {
-    const approved = contacts.filter((c) => c.is_approved);
-    toast({
-      title: 'Push to Affinity',
-      description: `${approved.length} approved contacts ready to push. (placeholder)`,
-    });
-  }, [contacts, toast]);
+  const handleExportVerified = useCallback(() => {
+    handleExportCSV();
+  }, [handleExportCSV]);
 
   const handleAddContactSubmit = useCallback(
     async (data: { affinity_id: string; name: string; company_name: string; email_address: string }) => {
@@ -117,7 +114,21 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container py-16 text-center text-muted-foreground text-sm">Loading…</main>
+        <main className="container py-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 flex-1" />
+            <Skeleton className="h-9 w-[130px]" />
+            <Skeleton className="h-9 w-[120px]" />
+            <Skeleton className="h-9 w-[140px]" />
+            <Skeleton className="h-9 w-[140px]" />
+          </div>
+          <Skeleton className="h-4 w-48" />
+          <div className="space-y-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
@@ -142,11 +153,9 @@ const Index = () => {
           onConfidenceFilterChange={setConfidenceFilter}
           approvalFilter={approvalFilter}
           onApprovalFilterChange={setApprovalFilter}
-          onFetchContacts={handleBulkDiscovery}
           onAddContact={() => setAddContactOpen(true)}
           onUploadCSV={handleUploadCSV}
-          onPushToAffinity={handlePushToAffinity}
-          onExportCSV={handleExportCSV}
+          onExportCSV={handleExportVerified}
           onRunBulkDiscovery={handleBulkDiscovery}
           discoveryRunning={discoveryRunning}
         />
