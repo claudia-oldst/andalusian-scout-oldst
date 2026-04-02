@@ -72,6 +72,8 @@ export interface Contact {
   // Joined from lookups
   confidence_level?: ConfidenceLevelLookup;
   designation_type?: DesignationTypeLookup;
+  // Joined from companies
+  company?: { website_url: string | null } | null;
   // Nested activity logs (loaded separately)
   activity_logs?: ActivityLog[];
 }

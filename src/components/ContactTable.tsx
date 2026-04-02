@@ -77,6 +77,7 @@ interface ContactTableProps {
 
 function CompanyLocationCell({ contact }: { contact: Contact }) {
   const locs = contact.company_location_raw;
+  const sourceUrl = contact.company?.website_url;
   if (locs.length === 0) return <span className="text-muted-foreground text-xs italic">—</span>;
 
   const { match, others } = getMatchingCompanyLocation(contact);
@@ -86,17 +87,31 @@ function CompanyLocationCell({ contact }: { contact: Contact }) {
     ? `${match}${otherCount > 0 ? ` (+${otherCount})` : ''}`
     : locs.join(', ');
 
+  const content = sourceUrl ? (
+    <a
+      href={sourceUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-accent hover:underline cursor-pointer border-b border-dotted border-accent/40"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {displayText}
+    </a>
+  ) : (
+    <span className={locs.length > 1 || match ? 'cursor-help border-b border-dotted border-muted-foreground/40' : ''}>
+      {displayText}
+    </span>
+  );
+
   if (locs.length <= 1 && !match) {
-    return <span>{locs[0]}</span>;
+    return content;
   }
 
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="cursor-help border-b border-dotted border-muted-foreground/40">
-            {displayText}
-          </span>
+          {content}
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
           <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">
