@@ -260,9 +260,9 @@ const Index = () => {
           const allLinks: string[] = (mapResult as any).links || mapResult.data?.links || [];
           if (mapResult.success && allLinks.length > 0) {
             // Priority-weighted filtering
-            const p1 = allLinks.filter((u: string) => /locations|offices/i.test(u));
-            const p2 = allLinks.filter((u: string) => /contact|reach-us|find-us/i.test(u));
-            const p3 = allLinks.filter((u: string) => /about|headquarters/i.test(u));
+            const p1 = allLinks.filter((u: string) => /\/contact(\/|$|\?)/i.test(u));
+            const p2 = allLinks.filter((u: string) => /locations|offices/i.test(u));
+            const p3 = allLinks.filter((u: string) => /reach-us|find-us|about|headquarters/i.test(u));
             candidateUrls = [...p1, ...p2, ...p3];
 
             // Deduplicate
