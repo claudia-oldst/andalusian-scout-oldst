@@ -51,11 +51,11 @@ export const SearchBar = ({
           placeholder="Search by name, company, or email…"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9 h-9 bg-card border-border focus-visible:ring-accent text-sm"
+          className="pl-9 h-10 bg-card border-border focus-visible:ring-accent text-sm"
         />
       </div>
       <Select value={confidenceFilter} onValueChange={onConfidenceFilterChange}>
-        <SelectTrigger className="h-9 w-[130px] text-xs border-border bg-card">
+        <SelectTrigger className="h-10 w-[140px] text-sm border-border bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -66,7 +66,7 @@ export const SearchBar = ({
         </SelectContent>
       </Select>
       <Select value={approvalFilter} onValueChange={(v) => onApprovalFilterChange(v as 'all' | 'approved' | 'pending')}>
-        <SelectTrigger className="h-9 w-[120px] text-xs border-border bg-card">
+        <SelectTrigger className="h-10 w-[130px] text-sm border-border bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -82,7 +82,7 @@ export const SearchBar = ({
         <DropdownMenuTrigger asChild>
           <Button
             size="sm"
-            className="bg-accent text-accent-foreground hover:bg-accent/90 text-[11px] tracking-[0.12em] uppercase font-medium h-9 gap-1.5"
+            className="bg-accent text-accent-foreground hover:bg-accent/90 text-xs tracking-[0.12em] uppercase font-medium h-10 gap-1.5"
           >
             <Upload className="h-3.5 w-3.5" />
             Import
@@ -106,7 +106,7 @@ export const SearchBar = ({
         onClick={onExportCSV}
         size="sm"
         variant="outline"
-        className="h-9 text-[11px] tracking-[0.12em] uppercase font-medium gap-1.5"
+        className="h-10 text-xs tracking-[0.12em] uppercase font-medium gap-1.5"
       >
         <Download className="h-3.5 w-3.5" />
         Export
@@ -118,7 +118,7 @@ export const SearchBar = ({
         disabled={discoveryRunning}
         size="sm"
         variant="outline"
-        className="h-9 text-[11px] tracking-[0.12em] uppercase font-medium gap-1.5"
+        className="h-10 text-xs tracking-[0.12em] uppercase font-medium gap-1.5"
         title="Run OSINT discovery on all pending contacts"
       >
         <Radar className="h-3.5 w-3.5" />

@@ -161,7 +161,7 @@ const Index = () => {
         />
 
         <div className="flex items-center justify-between">
-          <p className="text-[11px] text-muted-foreground tracking-wider uppercase">
+          <p className="text-xs text-muted-foreground tracking-wider uppercase">
             {totalCount} contact{totalCount !== 1 ? 's' : ''} ·{' '}
             Page {page + 1} of {Math.max(totalPages, 1)}
           </p>

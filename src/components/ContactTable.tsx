@@ -121,7 +121,7 @@ export const ContactTable = ({
               (col) => (
                 <TableHead
                   key={col}
-                  className="text-[10px] tracking-[0.14em] uppercase font-semibold text-muted-foreground py-2.5"
+                  className="text-[11px] tracking-[0.14em] uppercase font-semibold text-muted-foreground py-3"
                 >
                   {col}
                 </TableHead>
@@ -143,7 +143,7 @@ export const ContactTable = ({
                 className="cursor-pointer hover:bg-muted/30 transition-colors border-b border-border/50"
                 onClick={() => onRowClick(contact)}
               >
-                <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={contact.is_approved}
                     disabled={contact.designation_id === DESIGNATION.PENDING}
@@ -151,10 +151,10 @@ export const ContactTable = ({
                     title={contact.designation_id === DESIGNATION.PENDING ? 'Select a designation first' : undefined}
                   />
                 </TableCell>
-                <TableCell className="font-medium text-foreground text-sm py-2.5">{contact.name}</TableCell>
-                <TableCell className="text-muted-foreground text-sm py-2.5">{contact.company_name}</TableCell>
-                <TableCell className="text-muted-foreground text-xs py-2.5">{contact.email_address}</TableCell>
-                <TableCell className="text-sm py-2.5">
+                <TableCell className="font-medium text-foreground text-sm py-3">{contact.name}</TableCell>
+                <TableCell className="text-muted-foreground text-sm py-3">{contact.company_name}</TableCell>
+                <TableCell className="text-muted-foreground text-sm py-3">{contact.email_address}</TableCell>
+                <TableCell className="text-sm py-3">
                   {contact.person_location_raw ? (
                     <a
                       href={`https://www.google.com/search?q=site%3Alinkedin.com+%22${encodeURIComponent(contact.name)}%22+%22${encodeURIComponent(contact.company_name)}%22+location`}
@@ -169,13 +169,13 @@ export const ContactTable = ({
                     <span className="text-muted-foreground text-xs italic">—</span>
                   )}
                 </TableCell>
-                <TableCell className="text-sm py-2.5">
+                <TableCell className="text-sm py-3">
                   <CompanyLocationCell contact={contact} />
                 </TableCell>
-                <TableCell className="py-2.5">
+                <TableCell className="py-3">
                   <ConfidenceBadge confidenceId={contact.confidence_id} />
                 </TableCell>
-                <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1">
                     <Select
                       value={contact.designation_id !== DESIGNATION.PENDING ? String(contact.designation_id) : undefined}
