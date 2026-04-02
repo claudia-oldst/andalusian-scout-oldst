@@ -483,7 +483,7 @@ const Index = () => {
           company: c.company_name,
           email: c.email_address,
           person_location: c.person_location_raw,
-          company_location: c.company_location_raw,
+          company_location: c.company_location_raw.join(', '),
           final_location: finalLocation,
           confidence: c.confidence_level?.label || '',
           designation: c.designation_type?.label || '',
