@@ -82,7 +82,7 @@ export const SearchBar = ({
         <DropdownMenuTrigger asChild>
           <Button
             size="sm"
-            className="bg-accent text-accent-foreground hover:bg-accent/90 text-[11px] tracking-[0.12em] uppercase font-medium h-9 gap-1.5"
+            className="bg-accent text-accent-foreground hover:bg-accent/90 text-xs tracking-[0.12em] uppercase font-medium h-10 gap-1.5"
           >
             <Upload className="h-3.5 w-3.5" />
             Import
