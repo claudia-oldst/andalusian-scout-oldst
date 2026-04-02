@@ -106,7 +106,7 @@ export const SearchBar = ({
         onClick={onExportCSV}
         size="sm"
         variant="outline"
-        className="h-9 text-[11px] tracking-[0.12em] uppercase font-medium gap-1.5"
+        className="h-10 text-xs tracking-[0.12em] uppercase font-medium gap-1.5"
       >
         <Download className="h-3.5 w-3.5" />
         Export
