@@ -169,10 +169,10 @@ export const ContactTable = ({
                     <span className="text-muted-foreground text-xs italic">—</span>
                   )}
                 </TableCell>
-                <TableCell className="text-sm py-2.5">
+                <TableCell className="text-sm py-3">
                   <CompanyLocationCell contact={contact} />
                 </TableCell>
-                <TableCell className="py-2.5">
+                <TableCell className="py-3">
                   <ConfidenceBadge confidenceId={contact.confidence_id} />
                 </TableCell>
                 <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
