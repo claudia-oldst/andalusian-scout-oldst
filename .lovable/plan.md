@@ -1,27 +1,24 @@
 
-# Company Location Discovery: Domain Map → Scrape → Extract Pipeline
 
-## Status: IMPLEMENTED
+# Bug Fix: Map response links not being accessed
 
-## Architecture
+## Root Cause
+The Firecrawl `/v1/map` API returns `{ success: true, links: [...] }` at the top level. The edge function passes this through directly. But the code in `Index.tsx` accesses `mapResult.data?.links` — the `.data` nesting doesn't exist. So `candidateUrls` is always empty, and it always falls back to the homepage.
 
-### Person Location
-1. Google SERP scrape via `site:linkedin.com "Name" "Company"` query
-2. Extract location from `YrbPuc` HTML element
-3. Source URL = Google search URL (openable by HIL)
+The edge function logs confirm the map succeeded for `old.st`, but the URLs (`/contact`, `/about-us`, `/careers`) were silently discarded.
 
-### Company Location  
-1. Parse domain from email (skip free providers like Gmail)
-2. Cache-first: check `companies` table
-3. If miss/stale (>6 months): Map domain → filter high-value pages → scrape top 2 → extract all locations
-4. Upsert into `companies` cache, link contact via `company_id`
-5. `company_location_raw` is `text[]` (supports multiple locations)
+## Fix
+In `src/pages/Index.tsx`, change all references from `mapResult.data?.links` to `mapResult.links`:
 
-## Database
-- `companies` table: domain, hq_locations (text[]), website_url, last_scraped_at
-- `contacts.company_id` FK to companies
-- `contacts.company_location_raw` changed from text to text[]
+- **Line 260**: `mapResult.success && mapResult.links?.length > 0`
+- **Line 261**: `const allLinks: string[] = mapResult.links;`
+- **Line 302**: `const mappedCount = mapResult.links?.length || 0;`
 
-## Credit Cost
-- Person: 1 credit (Google SERP scrape)
-- Company: 2 credits per new domain (1 map + 1 scrape), 0 for cached
+Also add a fallback check for `mapResult.data?.links` in case the response structure varies:
+
+```
+const allLinks: string[] = mapResult.links || mapResult.data?.links || [];
+```
+
+This is a one-line-class bug — three lines to fix, no new files needed.
+
