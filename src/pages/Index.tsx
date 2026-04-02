@@ -419,7 +419,7 @@ const Index = () => {
                 company_name: row.company || '',
                 email_address: row.email,
                 person_location_raw: personLoc,
-                company_location_raw: companyLoc,
+                company_location_raw: companyLoc ? [companyLoc] : [],
                 confidence_id: confId,
               });
               count++;
