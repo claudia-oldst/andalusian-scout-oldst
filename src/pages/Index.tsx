@@ -451,7 +451,7 @@ const Index = () => {
           company_name: data.company_name,
           email_address: data.email_address,
           person_location_raw: '',
-          company_location_raw: '',
+          company_location_raw: [],
           confidence_id: CONFIDENCE.LOW,
         });
         await loadData();
