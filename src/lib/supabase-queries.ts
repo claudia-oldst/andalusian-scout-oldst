@@ -18,7 +18,7 @@ export async function fetchLookups(): Promise<Lookups> {
 export async function fetchContacts(): Promise<Contact[]> {
   const { data, error } = await supabase
     .from('contacts')
-    .select('*, confidence_level:confidence_levels(*), designation_type:designation_types(*)')
+    .select('*, confidence_level:confidence_levels(*), designation_type:designation_types(*), company:companies(website_url)')
     .order('created_at', { ascending: true });
 
   if (error) throw error;
