@@ -66,7 +66,7 @@ export const SearchBar = ({
         </SelectContent>
       </Select>
       <Select value={approvalFilter} onValueChange={(v) => onApprovalFilterChange(v as 'all' | 'approved' | 'pending')}>
-        <SelectTrigger className="h-9 w-[120px] text-xs border-border bg-card">
+        <SelectTrigger className="h-10 w-[130px] text-sm border-border bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
