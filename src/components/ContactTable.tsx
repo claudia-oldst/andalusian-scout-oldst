@@ -151,10 +151,10 @@ export const ContactTable = ({
                     title={contact.designation_id === DESIGNATION.PENDING ? 'Select a designation first' : undefined}
                   />
                 </TableCell>
-                <TableCell className="font-medium text-foreground text-sm py-2.5">{contact.name}</TableCell>
-                <TableCell className="text-muted-foreground text-sm py-2.5">{contact.company_name}</TableCell>
-                <TableCell className="text-muted-foreground text-xs py-2.5">{contact.email_address}</TableCell>
-                <TableCell className="text-sm py-2.5">
+                <TableCell className="font-medium text-foreground text-sm py-3">{contact.name}</TableCell>
+                <TableCell className="text-muted-foreground text-sm py-3">{contact.company_name}</TableCell>
+                <TableCell className="text-muted-foreground text-sm py-3">{contact.email_address}</TableCell>
+                <TableCell className="text-sm py-3">
                   {contact.person_location_raw ? (
                     <a
                       href={`https://www.google.com/search?q=site%3Alinkedin.com+%22${encodeURIComponent(contact.name)}%22+%22${encodeURIComponent(contact.company_name)}%22+location`}
