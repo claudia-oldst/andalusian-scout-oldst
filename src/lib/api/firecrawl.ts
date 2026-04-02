@@ -19,6 +19,12 @@ type ScrapeOptions = {
   waitFor?: number;
 };
 
+type MapOptions = {
+  search?: string;
+  limit?: number;
+  includeSubdomains?: boolean;
+};
+
 export const firecrawlApi = {
   async search(query: string, options?: SearchOptions): Promise<FirecrawlResponse> {
     const { data, error } = await supabase.functions.invoke('firecrawl-search', {
@@ -33,6 +39,17 @@ export const firecrawlApi = {
 
   async scrape(url: string, options?: ScrapeOptions): Promise<FirecrawlResponse> {
     const { data, error } = await supabase.functions.invoke('firecrawl-scrape', {
+      body: { url, options },
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return data;
+  },
+
+  async map(url: string, options?: MapOptions): Promise<FirecrawlResponse> {
+    const { data, error } = await supabase.functions.invoke('firecrawl-map', {
       body: { url, options },
     });
 

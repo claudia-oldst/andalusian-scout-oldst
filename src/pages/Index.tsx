@@ -16,9 +16,12 @@ import {
   insertActivityLog,
   upsertContactFromCSV,
   updateContactLocations,
+  fetchCompanyByDomain,
+  upsertCompany,
 } from '@/lib/supabase-queries';
 import { firecrawlApi } from '@/lib/api/firecrawl';
-import { extractLocationFromMarkdown, extractCompanyLocationFromMarkdown, extractLocationFromDescription, extractLocationFromGoogleHtml } from '@/lib/extract-location';
+import { extractCompanyLocationsFromMarkdown, extractLocationFromDescription, extractLocationFromGoogleHtml } from '@/lib/extract-location';
+import { extractDomainFromEmail, extractRawDomain } from '@/lib/extract-domain';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 
@@ -178,18 +181,17 @@ const Index = () => {
 
   const runDiscoveryForContact = useCallback(async (contact: Contact) => {
     const personQuery = `site:linkedin.com "${contact.name}" "${contact.company_name}"`;
-    const companyQuery = `"${contact.company_name}" headquarters office location`;
-    // Build the Google search URL so the HIL can open the same SERP
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(personQuery)}`;
 
     let personLoc = contact.person_location_raw || '';
-    let companyLoc = contact.company_location_raw || '';
-    let companyUrl = '';
+    let companyLocs: string[] = contact.company_location_raw || [];
+    let companySourceUrl = '';
     let personSnippet = 'No results found.';
     let companySnippet = 'No results found.';
+    let companyId: string | undefined;
 
+    // ── Person location: Google SERP → YrbPuc extraction ──
     try {
-      // Scrape the Google SERP page to extract the LinkedIn location snippet
       const scrapeResult = await firecrawlApi.scrape(googleSearchUrl, {
         formats: ['html'],
         onlyMainContent: false,
@@ -205,7 +207,6 @@ const Index = () => {
           personSnippet = 'Google SERP scraped but YrbPuc element not found.';
         }
       } else {
-        // Fallback: use Firecrawl search API description
         console.warn('Google SERP scrape failed, falling back to search API:', scrapeResult.error);
         const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
         if (personResult.success && personResult.data?.length > 0) {
@@ -224,50 +225,123 @@ const Index = () => {
 
     await insertActivityLog({
       contact_id: contact.id,
-      event_type_id: 1, // Google Dorking · LinkedIn Scrape
+      event_type_id: 1,
       query_used: personQuery,
       source_url: googleSearchUrl,
       result_snippet: personSnippet,
     });
 
-    try {
-      const companyResult = await firecrawlApi.search(companyQuery, {
-        limit: 3,
-        scrapeOptions: { formats: ['markdown'] },
-      });
-      if (companyResult.success && companyResult.data?.length > 0) {
-        const top = companyResult.data[0];
-        companyUrl = top.url || '';
-        const mdLoc = extractCompanyLocationFromMarkdown(top.markdown || '');
-        // Fallback: use description (usually cleaner) rather than full markdown
-        companyLoc = mdLoc || top.description || top.title || '';
-        companySnippet = (top.markdown || top.description || '').slice(0, 500);
+    // ── Company location: Domain Map → Scrape → Extract pipeline ──
+    const rawDomain = extractRawDomain(contact.email_address);
+    const domainUrl = extractDomainFromEmail(contact.email_address);
+
+    if (rawDomain && domainUrl) {
+      try {
+        // Cache-first: check companies table
+        const existingCompany = await fetchCompanyByDomain(rawDomain);
+        const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
+        const isStale = !existingCompany?.last_scraped_at ||
+          (Date.now() - new Date(existingCompany.last_scraped_at).getTime()) > SIX_MONTHS_MS;
+
+        if (existingCompany && !isStale) {
+          // Use cached data
+          companyLocs = existingCompany.hq_locations;
+          companySourceUrl = existingCompany.website_url || domainUrl;
+          companyId = existingCompany.id;
+          companySnippet = `Location from Company Master Record (cached). ${companyLocs.join('; ')}`;
+        } else {
+          // Map → Scrape → Extract
+          const mapResult = await firecrawlApi.map(domainUrl, {
+            search: 'contact about locations office headquarters',
+            limit: 20,
+          });
+
+          let candidateUrls: string[] = [];
+          if (mapResult.success && mapResult.data?.links?.length > 0) {
+            const allLinks: string[] = mapResult.data.links;
+            // Priority-weighted filtering
+            const p1 = allLinks.filter((u: string) => /locations|offices/i.test(u));
+            const p2 = allLinks.filter((u: string) => /contact|reach-us|find-us/i.test(u));
+            const p3 = allLinks.filter((u: string) => /about|headquarters/i.test(u));
+            candidateUrls = [...p1, ...p2, ...p3];
+
+            // Deduplicate
+            candidateUrls = [...new Set(candidateUrls)];
+          }
+
+          // Fallback to homepage
+          if (candidateUrls.length === 0) {
+            candidateUrls = [domainUrl];
+          }
+
+          // Scrape top 2 candidates and merge markdown
+          const toScrape = candidateUrls.slice(0, 2);
+          let mergedMarkdown = '';
+          const scrapedUrls: string[] = [];
+
+          for (const pageUrl of toScrape) {
+            try {
+              const scrapeRes = await firecrawlApi.scrape(pageUrl, { formats: ['markdown'] });
+              if (scrapeRes.success) {
+                mergedMarkdown += (scrapeRes.data?.markdown || scrapeRes.data?.data?.markdown || '') + '\n\n';
+                scrapedUrls.push(pageUrl);
+              }
+            } catch (err) {
+              console.warn('Scrape failed for', pageUrl, err);
+            }
+          }
+
+          companySourceUrl = scrapedUrls[0] || domainUrl;
+
+          // Extract all locations from merged markdown
+          const extractedLocs = extractCompanyLocationsFromMarkdown(mergedMarkdown);
+          if (extractedLocs.length > 0) {
+            companyLocs = extractedLocs;
+          }
+
+          const mappedCount = mapResult.data?.links?.length || 0;
+          companySnippet = `Mapped ${mappedCount} pages; scraped ${scrapedUrls.join(', ') || 'homepage'}. Extracted ${companyLocs.length} location(s): ${companyLocs.join('; ') || 'none found'}.`;
+
+          // Upsert into companies cache
+          const company = await upsertCompany({
+            domain: rawDomain,
+            name: contact.company_name,
+            hq_locations: companyLocs,
+            website_url: companySourceUrl,
+          });
+          companyId = company.id;
+        }
+      } catch (err) {
+        console.error('Company discovery pipeline failed:', err);
+        companySnippet = `Pipeline error: ${err instanceof Error ? err.message : 'Unknown'}`;
       }
-    } catch (err) {
-      console.error('Company search failed:', err);
+    } else {
+      companySnippet = rawDomain
+        ? 'Domain extraction failed.'
+        : 'Free email provider — skipped company discovery.';
     }
 
     await insertActivityLog({
       contact_id: contact.id,
       event_type_id: 1,
-      query_used: companyQuery,
-      source_url: companyUrl,
+      query_used: rawDomain ? `map+scrape: ${domainUrl}` : 'N/A (free email)',
+      source_url: companySourceUrl,
       result_snippet: companySnippet,
     });
 
     // Compute confidence
     let confId: number = CONFIDENCE.LOW;
-    if (personLoc && companyLoc) {
+    const companyLocJoined = companyLocs.join(' ').toLowerCase().trim();
+    if (personLoc && companyLocJoined) {
       const pNorm = personLoc.toLowerCase().trim();
-      const cNorm = companyLoc.toLowerCase().trim();
-      confId = pNorm === cNorm || pNorm.includes(cNorm) || cNorm.includes(pNorm)
+      confId = pNorm === companyLocJoined || pNorm.includes(companyLocJoined) || companyLocJoined.includes(pNorm)
         ? CONFIDENCE.HIGH
         : CONFIDENCE.MEDIUM;
     }
 
-    await updateContactLocations(contact.id, personLoc, companyLoc, confId);
+    await updateContactLocations(contact.id, personLoc, companyLocs, confId, companyId);
 
-    return { personLoc, companyLoc, confId };
+    return { personLoc, companyLocs, confId };
   }, []);
 
   const handleFetchContacts = useCallback(async () => {
@@ -345,7 +419,7 @@ const Index = () => {
                 company_name: row.company || '',
                 email_address: row.email,
                 person_location_raw: personLoc,
-                company_location_raw: companyLoc,
+                company_location_raw: companyLoc ? [companyLoc] : [],
                 confidence_id: confId,
               });
               count++;
@@ -377,7 +451,7 @@ const Index = () => {
           company_name: data.company_name,
           email_address: data.email_address,
           person_location_raw: '',
-          company_location_raw: '',
+          company_location_raw: [],
           confidence_id: CONFIDENCE.LOW,
         });
         await loadData();
@@ -401,7 +475,7 @@ const Index = () => {
         let finalLocation = '';
         switch (c.designation_id) {
           case DESIGNATION.PERSON: finalLocation = c.person_location_raw; break;
-          case DESIGNATION.COMPANY: finalLocation = c.company_location_raw; break;
+          case DESIGNATION.COMPANY: finalLocation = c.company_location_raw.join(', '); break;
           case DESIGNATION.MANUAL: finalLocation = c.manual_location; break;
         }
         return {
@@ -409,7 +483,7 @@ const Index = () => {
           company: c.company_name,
           email: c.email_address,
           person_location: c.person_location_raw,
-          company_location: c.company_location_raw,
+          company_location: c.company_location_raw.join(', '),
           final_location: finalLocation,
           confidence: c.confidence_level?.label || '',
           designation: c.designation_type?.label || '',

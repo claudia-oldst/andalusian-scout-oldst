@@ -49,7 +49,7 @@ interface ActivityLogModalProps {
 function resolveDisplayLocation(contact: Contact): string {
   switch (contact.designation_id) {
     case DESIGNATION.PERSON: return contact.person_location_raw;
-    case DESIGNATION.COMPANY: return contact.company_location_raw;
+    case DESIGNATION.COMPANY: return contact.company_location_raw.join(', ');
     case DESIGNATION.MANUAL: return contact.manual_location;
     default: return 'Select designation…';
   }
@@ -170,8 +170,8 @@ export const ActivityLogModal = ({
               {contact.person_location_raw && (
                 <SelectItem value={String(DESIGNATION.PERSON)}>{contact.person_location_raw}</SelectItem>
               )}
-              {contact.company_location_raw && contact.company_location_raw !== contact.person_location_raw && (
-                <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw}</SelectItem>
+              {contact.company_location_raw.length > 0 && contact.company_location_raw.join(', ') !== contact.person_location_raw && (
+                <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw.join(', ')}</SelectItem>
               )}
               {contact.manual_location && (
                 <SelectItem value={String(DESIGNATION.MANUAL)}>{contact.manual_location}</SelectItem>

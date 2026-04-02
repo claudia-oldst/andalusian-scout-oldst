@@ -22,7 +22,7 @@ import { RefreshCw } from 'lucide-react';
 function resolveDisplayLocation(contact: Contact): string {
   switch (contact.designation_id) {
     case DESIGNATION.PERSON: return contact.person_location_raw;
-    case DESIGNATION.COMPANY: return contact.company_location_raw;
+    case DESIGNATION.COMPANY: return contact.company_location_raw.join(', ');
     case DESIGNATION.MANUAL: return contact.manual_location;
     default: return 'Select…';
   }
@@ -98,7 +98,7 @@ export const ContactTable = ({
                 <TableCell className="text-muted-foreground text-sm py-2.5">{contact.company_name}</TableCell>
                 <TableCell className="text-muted-foreground text-xs py-2.5">{contact.email_address}</TableCell>
                 <TableCell className="text-sm py-2.5">{contact.person_location_raw}</TableCell>
-                <TableCell className="text-sm py-2.5">{contact.company_location_raw}</TableCell>
+                <TableCell className="text-sm py-2.5">{contact.company_location_raw.join(', ')}</TableCell>
                 <TableCell className="py-2.5">
                   <ConfidenceBadge confidenceId={contact.confidence_id} />
                 </TableCell>
@@ -117,8 +117,8 @@ export const ContactTable = ({
                         {contact.person_location_raw && (
                           <SelectItem value={String(DESIGNATION.PERSON)}>{contact.person_location_raw}</SelectItem>
                         )}
-                        {contact.company_location_raw && contact.company_location_raw !== contact.person_location_raw && (
-                          <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw}</SelectItem>
+                {contact.company_location_raw.length > 0 && contact.company_location_raw.join(', ') !== contact.person_location_raw && (
+                  <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw.join(', ')}</SelectItem>
                         )}
                         {contact.manual_location && (
                           <SelectItem value={String(DESIGNATION.MANUAL)}>{contact.manual_location}</SelectItem>

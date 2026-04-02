@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Contact, ActivityLog, Lookups } from '@/types/contact';
+import type { Contact, ActivityLog, Lookups, Company } from '@/types/contact';
 
 export async function fetchLookups(): Promise<Lookups> {
   const [conf, desig, events] = await Promise.all([
@@ -77,7 +77,7 @@ export async function upsertContactFromCSV(contact: {
   company_name: string;
   email_address: string;
   person_location_raw: string;
-  company_location_raw: string;
+  company_location_raw: string[];
   confidence_id: number;
 }) {
   const { error } = await supabase
@@ -89,16 +89,66 @@ export async function upsertContactFromCSV(contact: {
 export async function updateContactLocations(
   id: string,
   personLocation: string,
-  companyLocation: string,
-  confidenceId: number
+  companyLocations: string[],
+  confidenceId: number,
+  companyId?: string
 ) {
+  const patch: Record<string, unknown> = {
+    person_location_raw: personLocation,
+    company_location_raw: companyLocations,
+    confidence_id: confidenceId,
+  };
+  if (companyId) patch.company_id = companyId;
+
   const { error } = await supabase
     .from('contacts')
-    .update({
-      person_location_raw: personLocation,
-      company_location_raw: companyLocation,
-      confidence_id: confidenceId,
-    })
+    .update(patch)
     .eq('id', id);
+  if (error) throw error;
+}
+
+// ── Company cache queries ──────────────────────────────────────
+
+export async function fetchCompanyByDomain(domain: string): Promise<Company | null> {
+  const { data, error } = await supabase
+    .from('companies')
+    .select('*')
+    .eq('domain', domain)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as unknown as Company) || null;
+}
+
+export async function upsertCompany(company: {
+  domain: string;
+  name?: string;
+  hq_locations: string[];
+  website_url?: string;
+}): Promise<Company> {
+  const { data, error } = await supabase
+    .from('companies')
+    .upsert(
+      {
+        domain: company.domain,
+        name: company.name || null,
+        hq_locations: company.hq_locations,
+        website_url: company.website_url || null,
+        last_scraped_at: new Date().toISOString(),
+      },
+      { onConflict: 'domain' }
+    )
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as unknown as Company;
+}
+
+export async function linkContactToCompany(contactId: string, companyId: string) {
+  const { error } = await supabase
+    .from('contacts')
+    .update({ company_id: companyId })
+    .eq('id', contactId);
   if (error) throw error;
 }

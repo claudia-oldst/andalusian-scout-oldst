@@ -1,67 +1,27 @@
 
+# Company Location Discovery: Domain Map → Scrape → Extract Pipeline
 
-# Revised Plan: Company Location Discovery with Multi-Location Support
+## Status: IMPLEMENTED
 
-## Change from Previous Plan
-The `companies.hq_location` column becomes `text[]` (array) instead of `text`, storing all locations found on the company website. The `contacts.company_location_raw` also becomes an array to display multiple locations in the UI.
+## Architecture
 
-## Database Changes
+### Person Location
+1. Google SERP scrape via `site:linkedin.com "Name" "Company"` query
+2. Extract location from `YrbPuc` HTML element
+3. Source URL = Google search URL (openable by HIL)
 
-### New `companies` table
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | `gen_random_uuid()` |
-| domain | text UNIQUE NOT NULL | e.g. `old.st` |
-| name | text | Company name |
-| hq_locations | text[] | Array of verified addresses |
-| website_url | text | The specific page scraped |
-| last_scraped_at | timestamptz | Cache staleness check |
+### Company Location  
+1. Parse domain from email (skip free providers like Gmail)
+2. Cache-first: check `companies` table
+3. If miss/stale (>6 months): Map domain → filter high-value pages → scrape top 2 → extract all locations
+4. Upsert into `companies` cache, link contact via `company_id`
+5. `company_location_raw` is `text[]` (supports multiple locations)
 
-### Modify `contacts` table
-- Add `company_id uuid` nullable FK to `companies.id`
-- Change `company_location_raw` from `text` to `text[]` (default `'{}'::text[]`)
-
-## New Files
-
-### `supabase/functions/firecrawl-map/index.ts`
-Standard edge function calling Firecrawl `/v1/map`. Same CORS pattern as existing functions.
-
-### `src/lib/extract-domain.ts`
-- `extractDomainFromEmail(email)` → `https://www.{domain}` or `null`
-- Ignore list: gmail.com, outlook.com, hotmail.com, icloud.com, yahoo.com, aol.com
-
-## Modified Files
-
-### `src/lib/api/firecrawl.ts`
-Add `map(url, options)` method.
-
-### `src/lib/extract-location.ts`
-- Rename/enhance `extractCompanyLocationFromMarkdown` → returns `string[]` (all locations found)
-- Add patterns: structured address blocks, postal codes, footer content, "Registered office" labels
-- Collect all matches instead of returning first match
-
-### `src/pages/Index.tsx` — company discovery block
-Replace search-based lookup with:
-1. Parse domain from email (skip free providers)
-2. Check `companies` cache table
-3. If miss: map domain → filter for high-value pages → scrape top 2 → merge markdown → extract all locations
-4. Upsert into `companies`, link contact via `company_id`
-5. Store locations array in `company_location_raw`
-
-### `src/lib/supabase-queries.ts`
-- Add `fetchCompanyByDomain`, `upsertCompany`, `linkContactToCompany`
-- Update `updateContactLocations` to accept `string[]` for company location
-
-### `src/types/contact.ts`
-- Add `Company` interface with `hq_locations: string[]`
-- Update `Contact.company_location_raw` to `string[]`
-
-### `src/components/ContactTable.tsx`
-- Render `company_location_raw` as a comma-separated list or multiple badges
-
-### Activity Log
-Source URL = the specific page scraped. Snippet includes discovery path description and all extracted locations.
+## Database
+- `companies` table: domain, hq_locations (text[]), website_url, last_scraped_at
+- `contacts.company_id` FK to companies
+- `contacts.company_location_raw` changed from text to text[]
 
 ## Credit Cost
-2 Firecrawl credits per new domain (1 map + 1 scrape). Cached domains = 0 credits.
-
+- Person: 1 credit (Google SERP scrape)
+- Company: 2 credits per new domain (1 map + 1 scrape), 0 for cached
