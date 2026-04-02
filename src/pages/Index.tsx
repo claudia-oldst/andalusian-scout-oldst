@@ -360,7 +360,7 @@ const Index = () => {
 
     // Auto-set HIL designation when there's a HIGH confidence match
     if (autoDesignation !== DESIGNATION.PENDING) {
-      await supabase.from('contacts').update({ designation_id: autoDesignation }).eq('id', contact.id);
+      await updateContactDesignation(contact.id, autoDesignation);
     }
 
     return { personLoc, companyLocs, confId };
