@@ -19,7 +19,7 @@ import {
   fetchCompanyByDomain,
   upsertCompany,
 } from '@/lib/supabase-queries';
-import { firecrawlApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, extractLocationsViaLLM } from '@/lib/api/firecrawl';
 import { extractCompanyLocationsFromMarkdown, extractLocationFromDescription, extractLocationFromGoogleHtml } from '@/lib/extract-location';
 import { extractDomainFromEmail, extractRawDomain } from '@/lib/extract-domain';
 import { useToast } from '@/hooks/use-toast';
@@ -293,8 +293,11 @@ const Index = () => {
 
           companySourceUrl = scrapedUrls[0] || domainUrl;
 
-          // Extract all locations from merged markdown
-          const extractedLocs = extractCompanyLocationsFromMarkdown(mergedMarkdown);
+          // Extract locations: LLM-first, regex fallback
+          let extractedLocs = await extractLocationsViaLLM(mergedMarkdown);
+          if (extractedLocs.length === 0) {
+            extractedLocs = extractCompanyLocationsFromMarkdown(mergedMarkdown);
+          }
           if (extractedLocs.length > 0) {
             companyLocs = extractedLocs;
           }
