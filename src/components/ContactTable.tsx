@@ -175,7 +175,7 @@ export const ContactTable = ({
                 <TableCell className="py-3">
                   <ConfidenceBadge confidenceId={contact.confidence_id} />
                 </TableCell>
-                <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1">
                     <Select
                       value={contact.designation_id !== DESIGNATION.PENDING ? String(contact.designation_id) : undefined}
