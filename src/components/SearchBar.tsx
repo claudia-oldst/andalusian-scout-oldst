@@ -51,7 +51,7 @@ export const SearchBar = ({
           placeholder="Search by name, company, or email…"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9 h-9 bg-card border-border focus-visible:ring-accent text-sm"
+          className="pl-9 h-10 bg-card border-border focus-visible:ring-accent text-sm"
         />
       </div>
       <Select value={confidenceFilter} onValueChange={onConfidenceFilterChange}>
