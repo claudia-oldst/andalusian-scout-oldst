@@ -143,7 +143,7 @@ export const ContactTable = ({
                 className="cursor-pointer hover:bg-muted/30 transition-colors border-b border-border/50"
                 onClick={() => onRowClick(contact)}
               >
-                <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={contact.is_approved}
                     disabled={contact.designation_id === DESIGNATION.PENDING}
