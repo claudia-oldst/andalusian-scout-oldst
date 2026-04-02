@@ -1,40 +1,67 @@
 
 
-# Fix: LinkedIn-Only Person Location Discovery
+# Revised Plan: Company Location Discovery with Multi-Location Support
 
-## Problem
-The person search query `"Name" "Company" location city` returns non-LinkedIn results (e.g., RocketReach). The extraction regex for `defaultLocalizedName` never matches because the markdown isn't from LinkedIn. The company search also returns irrelevant results (Companies House descriptions stored as raw location).
+## Change from Previous Plan
+The `companies.hq_location` column becomes `text[]` (array) instead of `text`, storing all locations found on the company website. The `contacts.company_location_raw` also becomes an array to display multiple locations in the UI.
 
-## Solution
-Two-step pipeline for person location:
-1. **Search** with `site:linkedin.com "Name" "Company"` to find the LinkedIn profile URL
-2. **Scrape** that LinkedIn URL using `firecrawlApi.scrape()` to get full page markdown
-3. **Extract** location from the scraped markdown using the existing `extractLocationFromMarkdown` (which targets `defaultLocalizedName`)
+## Database Changes
 
-Company search stays as a separate search query (no LinkedIn restriction).
+### New `companies` table
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | `gen_random_uuid()` |
+| domain | text UNIQUE NOT NULL | e.g. `old.st` |
+| name | text | Company name |
+| hq_locations | text[] | Array of verified addresses |
+| website_url | text | The specific page scraped |
+| last_scraped_at | timestamptz | Cache staleness check |
 
-## Changes
+### Modify `contacts` table
+- Add `company_id uuid` nullable FK to `companies.id`
+- Change `company_location_raw` from `text` to `text[]` (default `'{}'::text[]`)
 
-### `src/pages/Index.tsx` — `runDiscoveryForContact`
+## New Files
 
-**Person location (lines 180, 190-206):**
-- Change query to: `site:linkedin.com "${contact.name}" "${contact.company_name}"`
-- After search returns results, find the first result with a `linkedin.com` URL
-- Call `firecrawlApi.scrape(linkedinUrl, { formats: ['markdown'] })` on that URL
-- Extract location from the **scraped** markdown using `extractLocationFromMarkdown`
-- Fall back to search result markdown/description if scrape fails
-- Store scraped markdown snippet in activity log
+### `supabase/functions/firecrawl-map/index.ts`
+Standard edge function calling Firecrawl `/v1/map`. Same CORS pattern as existing functions.
 
-**Company location (lines 216-229):**
-- Keep the existing company search query pattern
-- Fix the fallback: when `extractCompanyLocationFromMarkdown` returns empty, use the `description` field (which is usually a clean summary) instead of the full markdown. But also add a `Registered office address` regex to the company extractor since Companies House data contains that pattern.
+### `src/lib/extract-domain.ts`
+- `extractDomainFromEmail(email)` → `https://www.{domain}` or `null`
+- Ignore list: gmail.com, outlook.com, hotmail.com, icloud.com, yahoo.com, aol.com
 
-### `src/lib/extract-location.ts` — `extractCompanyLocationFromMarkdown`
+## Modified Files
 
-Add a pattern for "Registered office address" followed by the address text (covers Companies House results seen in the network data).
+### `src/lib/api/firecrawl.ts`
+Add `map(url, options)` method.
 
-## Technical Notes
-- The scrape step costs 1 additional Firecrawl credit per contact but ensures we get the actual LinkedIn page content with `defaultLocalizedName`
-- Search with `site:linkedin.com` reliably returns LinkedIn profile URLs as top results
-- The `firecrawlApi.scrape` function and edge function already exist and work
+### `src/lib/extract-location.ts`
+- Rename/enhance `extractCompanyLocationFromMarkdown` → returns `string[]` (all locations found)
+- Add patterns: structured address blocks, postal codes, footer content, "Registered office" labels
+- Collect all matches instead of returning first match
+
+### `src/pages/Index.tsx` — company discovery block
+Replace search-based lookup with:
+1. Parse domain from email (skip free providers)
+2. Check `companies` cache table
+3. If miss: map domain → filter for high-value pages → scrape top 2 → merge markdown → extract all locations
+4. Upsert into `companies`, link contact via `company_id`
+5. Store locations array in `company_location_raw`
+
+### `src/lib/supabase-queries.ts`
+- Add `fetchCompanyByDomain`, `upsertCompany`, `linkContactToCompany`
+- Update `updateContactLocations` to accept `string[]` for company location
+
+### `src/types/contact.ts`
+- Add `Company` interface with `hq_locations: string[]`
+- Update `Contact.company_location_raw` to `string[]`
+
+### `src/components/ContactTable.tsx`
+- Render `company_location_raw` as a comma-separated list or multiple badges
+
+### Activity Log
+Source URL = the specific page scraped. Snippet includes discovery path description and all extracted locations.
+
+## Credit Cost
+2 Firecrawl credits per new domain (1 map + 1 scrape). Cached domains = 0 credits.
 
