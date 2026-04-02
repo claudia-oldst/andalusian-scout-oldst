@@ -475,7 +475,7 @@ const Index = () => {
         let finalLocation = '';
         switch (c.designation_id) {
           case DESIGNATION.PERSON: finalLocation = c.person_location_raw; break;
-          case DESIGNATION.COMPANY: finalLocation = c.company_location_raw; break;
+          case DESIGNATION.COMPANY: finalLocation = c.company_location_raw.join(', '); break;
           case DESIGNATION.MANUAL: finalLocation = c.manual_location; break;
         }
         return {
