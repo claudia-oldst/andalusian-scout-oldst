@@ -98,9 +98,12 @@ export function extractCompanyLocationsFromMarkdown(markdown: string): string[] 
     }
   }
 
+  // Filter PO Boxes
+  const filtered = locations.filter((loc) => !/\bP\.?O\.?\s*Box\b/i.test(loc));
+
   // Deduplicate
   const seen = new Set<string>();
-  return locations.filter((loc) => {
+  return filtered.filter((loc) => {
     const key = loc.toLowerCase().trim();
     if (seen.has(key) || key.length === 0) return false;
     seen.add(key);

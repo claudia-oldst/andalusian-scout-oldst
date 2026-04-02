@@ -293,8 +293,11 @@ const Index = () => {
 
           companySourceUrl = scrapedUrls[0] || domainUrl;
 
-          // Extract all locations from merged markdown
-          const extractedLocs = extractCompanyLocationsFromMarkdown(mergedMarkdown);
+          // Extract locations: LLM-first, regex fallback
+          let extractedLocs = await extractLocationsViaLLM(mergedMarkdown);
+          if (extractedLocs.length === 0) {
+            extractedLocs = extractCompanyLocationsFromMarkdown(mergedMarkdown);
+          }
           if (extractedLocs.length > 0) {
             companyLocs = extractedLocs;
           }

@@ -59,3 +59,25 @@ export const firecrawlApi = {
     return data;
   },
 };
+
+export async function extractLocationsViaLLM(markdown: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke('extract-locations', {
+      body: { markdown },
+    });
+
+    if (error) {
+      console.warn('LLM extraction invocation failed:', error.message);
+      return [];
+    }
+
+    if (data?.success && Array.isArray(data.locations)) {
+      return data.locations;
+    }
+
+    return [];
+  } catch (err) {
+    console.warn('LLM extraction error:', err);
+    return [];
+  }
+}
