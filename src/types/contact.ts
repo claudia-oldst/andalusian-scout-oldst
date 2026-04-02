@@ -31,6 +31,12 @@ export const CONFIDENCE = {
   LOW: 3,
 } as const;
 
+// Activity log event type IDs (must match log_event_types table)
+export const EVENT_TYPE = {
+  OSINT_DISCOVERY: 1,
+  MANUAL_ENTRY: 5,
+} as const;
+
 export interface ActivityLog {
   id: string;
   contact_id: string;

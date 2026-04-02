@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo } from 'react';
 import { fetchContacts, fetchLookups, toggleApproval, bulkSetApproval, updateContactDesignation, insertActivityLog, type FetchContactsParams } from '@/lib/supabase-queries';
-import { Contact, Lookups, DESIGNATION } from '@/types/contact';
+import { Contact, Lookups, DESIGNATION, EVENT_TYPE } from '@/types/contact';
 import { useToast } from '@/hooks/use-toast';
 
 export function useContacts() {
@@ -53,15 +53,16 @@ export function useContacts() {
       const contact = contacts.find((c) => c.id === id);
       if (!contact) return;
       if (contact.designation_id === DESIGNATION.PENDING && !contact.is_approved) {
-        toast({ title: 'Designation Required', description: 'Select a designation before approving.', variant: 'destructive' });
+        toast({ title: 'Designation Required', description: 'Please select a location designation before approving this contact.', variant: 'destructive' });
         return;
       }
       const newVal = !contact.is_approved;
       try {
         await toggleApproval(id, newVal);
         invalidateContacts();
-      } catch {
-        toast({ title: 'Error', description: 'Failed to update approval.', variant: 'destructive' });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        toast({ title: 'Approval Failed', description: `Could not update approval status: ${msg}`, variant: 'destructive' });
       }
     },
     [contacts, toast, invalidateContacts]
@@ -77,11 +78,12 @@ export function useContacts() {
         if (checked) {
           const skipped = contacts.filter((c) => c.designation_id === DESIGNATION.PENDING).length;
           if (skipped > 0) {
-            toast({ title: 'Some Skipped', description: `${skipped} contact(s) need a designation before approval.` });
+            toast({ title: 'Some Contacts Skipped', description: `${skipped} contact(s) need a designation before they can be approved.` });
           }
         }
-      } catch {
-        toast({ title: 'Error', description: 'Failed to bulk update.', variant: 'destructive' });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        toast({ title: 'Bulk Update Failed', description: `Could not update approval status: ${msg}`, variant: 'destructive' });
       }
     },
     [contacts, toast, invalidateContacts]
@@ -92,8 +94,9 @@ export function useContacts() {
       try {
         await updateContactDesignation(id, designationId);
         invalidateContacts();
-      } catch {
-        toast({ title: 'Error', description: 'Failed to update designation.', variant: 'destructive' });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        toast({ title: 'Designation Update Failed', description: `Could not update designation: ${msg}`, variant: 'destructive' });
       }
     },
     [toast, invalidateContacts]
@@ -106,20 +109,20 @@ export function useContacts() {
         await updateContactDesignation(contactId, DESIGNATION.MANUAL, location, source);
         await insertActivityLog({
           contact_id: contactId,
-          event_type_id: 5,
+          event_type_id: EVENT_TYPE.MANUAL_ENTRY,
           query_used: source || 'No source provided',
           source_url: '',
           result_snippet: `Manual location set to "${location}". Source: ${source || 'Not specified'}.`,
         });
         invalidateContacts();
-      } catch {
-        toast({ title: 'Error', description: 'Failed to save manual location.', variant: 'destructive' });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        toast({ title: 'Manual Location Failed', description: `Could not save manual location: ${msg}`, variant: 'destructive' });
       }
     },
     [toast, invalidateContacts]
   );
 
-  // Reset page when filters change
   const handleSearchChange = useCallback((val: string) => {
     setSearchTerm(val);
     setPage(0);
