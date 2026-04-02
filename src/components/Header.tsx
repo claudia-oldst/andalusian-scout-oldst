@@ -8,8 +8,8 @@ export const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-primary border-b border-primary/80">
-      <div className="container flex h-12 items-center justify-between">
-        <img src={logo} alt="Andalusian Credit Partners" className="h-5" />
+      <div className="container flex h-14 items-center justify-between">
+        <img src={logo} alt="Andalusian Credit Partners" className="h-6" />
         {user && (
           <div className="flex items-center gap-3">
             <span className="text-xs text-primary-foreground/70 hidden sm:inline">
