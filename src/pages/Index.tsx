@@ -332,17 +332,36 @@ const Index = () => {
       result_snippet: companySnippet,
     });
 
-    // Compute confidence
+    // Compute confidence & find matching company location
     let confId: number = CONFIDENCE.LOW;
-    const companyLocJoined = companyLocs.join(' ').toLowerCase().trim();
-    if (personLoc && companyLocJoined) {
+    let autoDesignation: number = DESIGNATION.PENDING;
+
+    if (personLoc) {
       const pNorm = personLoc.toLowerCase().trim();
-      confId = pNorm === companyLocJoined || pNorm.includes(companyLocJoined) || companyLocJoined.includes(pNorm)
-        ? CONFIDENCE.HIGH
-        : CONFIDENCE.MEDIUM;
+      // Check each company location for a match against person location
+      const matchingLoc = companyLocs.find((loc) => {
+        const cNorm = loc.toLowerCase().trim();
+        return pNorm === cNorm || pNorm.includes(cNorm) || cNorm.includes(pNorm);
+      });
+
+      if (matchingLoc) {
+        confId = CONFIDENCE.HIGH;
+        autoDesignation = DESIGNATION.COMPANY;
+      } else if (companyLocs.length > 0) {
+        confId = CONFIDENCE.MEDIUM;
+      } else {
+        confId = CONFIDENCE.MEDIUM;
+      }
+    } else {
+      confId = CONFIDENCE.LOW;
     }
 
     await updateContactLocations(contact.id, personLoc, companyLocs, confId, companyId);
+
+    // Auto-set HIL designation when there's a HIGH confidence match
+    if (autoDesignation !== DESIGNATION.PENDING) {
+      await supabase.from('contacts').update({ designation_id: autoDesignation }).eq('id', contact.id);
+    }
 
     return { personLoc, companyLocs, confId };
   }, []);
