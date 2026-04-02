@@ -5,7 +5,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+function log(level: string, msg: string, meta?: Record<string, unknown>) {
+  const entry = { ts: new Date().toISOString(), level, msg, ...meta };
+  if (level === 'error') console.error(JSON.stringify(entry));
+  else console.log(JSON.stringify(entry));
+}
+
 Deno.serve(async (req) => {
+  const reqId = crypto.randomUUID();
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -36,7 +44,7 @@ Deno.serve(async (req) => {
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
+      log('error', 'LOVABLE_API_KEY not configured', { reqId });
       return new Response(
         JSON.stringify({ success: false, error: 'LOVABLE_API_KEY not configured', locations: [] }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -44,6 +52,11 @@ Deno.serve(async (req) => {
     }
 
     const truncated = markdown.length > 8000 ? markdown.slice(0, 8000) : markdown;
+
+    log('info', 'LLM extraction started', { reqId, inputLength: truncated.length });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -92,11 +105,14 @@ Deno.serve(async (req) => {
         ],
         tool_choice: { type: 'function', function: { name: 'report_locations' } },
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      log('error', 'AI gateway error', { reqId, status: response.status });
       return new Response(
         JSON.stringify({ success: false, error: `AI gateway error: ${response.status}`, locations: [] }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -107,7 +123,7 @@ Deno.serve(async (req) => {
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
 
     if (!toolCall?.function?.arguments) {
-      console.warn('No tool call in response');
+      log('warn', 'No tool call in response', { reqId });
       return new Response(
         JSON.stringify({ success: true, locations: [] }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -119,14 +135,14 @@ Deno.serve(async (req) => {
       (loc: string) => loc && typeof loc === 'string' && loc.trim().length > 0
     );
 
-    console.log('Extracted locations via LLM:', locations);
+    log('info', 'Extraction complete', { reqId, locationCount: locations.length });
 
     return new Response(
       JSON.stringify({ success: true, locations }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error in extract-locations:', error);
+    log('error', 'Extract-locations failed', { reqId, error: error instanceof Error ? error.message : 'Unknown' });
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error', locations: [] }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

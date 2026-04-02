@@ -1,6 +1,19 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Contact, ActivityLog, Lookups, Company } from '@/types/contact';
 
+export interface PaginatedResult<T> {
+  data: T[];
+  count: number;
+}
+
+export interface FetchContactsParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  confidenceFilter?: string;
+  approvalFilter?: 'all' | 'approved' | 'pending';
+}
+
 export async function fetchLookups(): Promise<Lookups> {
   const [conf, desig, events] = await Promise.all([
     supabase.from('confidence_levels').select('*').order('id'),
@@ -15,12 +28,53 @@ export async function fetchLookups(): Promise<Lookups> {
   };
 }
 
-export async function fetchContacts(): Promise<Contact[]> {
+export async function fetchContacts(params: FetchContactsParams = {}): Promise<PaginatedResult<Contact>> {
+  const { page = 0, pageSize = 50, search, confidenceFilter, approvalFilter } = params;
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from('contacts')
+    .select('*, confidence_level:confidence_levels(*), designation_type:designation_types(*), company:companies(website_url)', { count: 'exact' })
+    .order('created_at', { ascending: true })
+    .range(from, to);
+
+  if (search?.trim()) {
+    const q = `%${search.trim()}%`;
+    query = query.or(`name.ilike.${q},company_name.ilike.${q},email_address.ilike.${q}`);
+  }
+
+  if (confidenceFilter && confidenceFilter !== 'all') {
+    query = query.eq('confidence_id', Number(confidenceFilter));
+  }
+
+  if (approvalFilter === 'approved') {
+    query = query.eq('is_approved', true);
+  } else if (approvalFilter === 'pending') {
+    query = query.eq('is_approved', false);
+  }
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+  return { data: (data as unknown as Contact[]) || [], count: count ?? 0 };
+}
+
+export async function fetchAllContactIds(designationId?: number): Promise<string[]> {
+  let query = supabase.from('contacts').select('id');
+  if (designationId !== undefined) {
+    query = query.eq('designation_id', designationId);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((c) => c.id);
+}
+
+export async function fetchContactsByIds(ids: string[]): Promise<Contact[]> {
+  if (ids.length === 0) return [];
   const { data, error } = await supabase
     .from('contacts')
     .select('*, confidence_level:confidence_levels(*), designation_type:designation_types(*), company:companies(website_url)')
-    .order('created_at', { ascending: true });
-
+    .in('id', ids);
   if (error) throw error;
   return (data as unknown as Contact[]) || [];
 }
@@ -68,6 +122,23 @@ export async function insertActivityLog(log: {
   result_snippet: string;
 }) {
   const { error } = await supabase.from('activity_logs').insert(log);
+  if (error) throw error;
+}
+
+export async function bulkUpsertContacts(contacts: {
+  affinity_id: string;
+  name: string;
+  company_name: string;
+  email_address: string;
+  person_location_raw: string;
+  company_location_raw: string[];
+  confidence_id: number;
+}[]) {
+  if (contacts.length === 0) return;
+  // Supabase supports bulk upsert natively
+  const { error } = await supabase
+    .from('contacts')
+    .upsert(contacts, { onConflict: 'affinity_id' });
   if (error) throw error;
 }
 
