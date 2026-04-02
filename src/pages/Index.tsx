@@ -257,8 +257,8 @@ const Index = () => {
           });
 
           let candidateUrls: string[] = [];
-          if (mapResult.success && mapResult.data?.links?.length > 0) {
-            const allLinks: string[] = mapResult.data.links;
+          const allLinks: string[] = mapResult.links || mapResult.data?.links || [];
+          if (mapResult.success && allLinks.length > 0) {
             // Priority-weighted filtering
             const p1 = allLinks.filter((u: string) => /locations|offices/i.test(u));
             const p2 = allLinks.filter((u: string) => /contact|reach-us|find-us/i.test(u));
