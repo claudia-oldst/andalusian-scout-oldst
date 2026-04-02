@@ -17,6 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { RefreshCw } from 'lucide-react';
 
 function resolveDisplayLocation(contact: Contact): string {
@@ -28,6 +34,27 @@ function resolveDisplayLocation(contact: Contact): string {
   }
 }
 
+/** Find the company location that matches person_location_raw */
+function getMatchingCompanyLocation(contact: Contact): { match: string | null; others: string[] } {
+  const personLoc = contact.person_location_raw?.toLowerCase().trim();
+  if (!personLoc || contact.company_location_raw.length === 0) {
+    return { match: null, others: contact.company_location_raw };
+  }
+
+  const matchIdx = contact.company_location_raw.findIndex((loc) => {
+    const cNorm = loc.toLowerCase().trim();
+    return personLoc === cNorm || personLoc.includes(cNorm) || cNorm.includes(personLoc);
+  });
+
+  if (matchIdx === -1) {
+    return { match: null, others: contact.company_location_raw };
+  }
+
+  const match = contact.company_location_raw[matchIdx];
+  const others = contact.company_location_raw.filter((_, i) => i !== matchIdx);
+  return { match, others };
+}
+
 interface ContactTableProps {
   contacts: Contact[];
   onToggleApproval: (id: string) => void;
@@ -37,6 +64,50 @@ interface ContactTableProps {
   onRunDiscovery?: (contactId: string) => void;
   discoveryRunning?: boolean;
   allVisibleApproved: boolean;
+}
+
+function CompanyLocationCell({ contact }: { contact: Contact }) {
+  const locs = contact.company_location_raw;
+  if (locs.length === 0) return <span className="text-muted-foreground text-xs italic">—</span>;
+
+  const { match, others } = getMatchingCompanyLocation(contact);
+  const otherCount = others.length;
+
+  const displayText = match
+    ? `${match}${otherCount > 0 ? ` (+${otherCount})` : ''}`
+    : locs.join(', ');
+
+  if (locs.length <= 1 && !match) {
+    return <span>{locs[0]}</span>;
+  }
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="cursor-help border-b border-dotted border-muted-foreground/40">
+            {displayText}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">
+            All Company Locations
+          </p>
+          <ul className="space-y-0.5">
+            {locs.map((loc, i) => {
+              const isMatch = match && loc === match;
+              return (
+                <li key={i} className={isMatch ? 'font-semibold text-accent' : ''}>
+                  {loc}
+                  {isMatch && <span className="ml-1 text-[10px] text-accent">(match)</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 export const ContactTable = ({
@@ -98,7 +169,9 @@ export const ContactTable = ({
                 <TableCell className="text-muted-foreground text-sm py-2.5">{contact.company_name}</TableCell>
                 <TableCell className="text-muted-foreground text-xs py-2.5">{contact.email_address}</TableCell>
                 <TableCell className="text-sm py-2.5">{contact.person_location_raw}</TableCell>
-                <TableCell className="text-sm py-2.5">{contact.company_location_raw.join(', ')}</TableCell>
+                <TableCell className="text-sm py-2.5">
+                  <CompanyLocationCell contact={contact} />
+                </TableCell>
                 <TableCell className="py-2.5">
                   <ConfidenceBadge confidenceId={contact.confidence_id} />
                 </TableCell>
