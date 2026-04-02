@@ -12,7 +12,7 @@ export const Header = () => {
         <img src={logo} alt="Andalusian Credit Partners" className="h-6" />
         {user && (
           <div className="flex items-center gap-3">
-            <span className="text-xs text-primary-foreground/70 hidden sm:inline">
+            <span className="text-sm text-primary-foreground/70 hidden sm:inline">
               {user.email}
             </span>
             <Button
