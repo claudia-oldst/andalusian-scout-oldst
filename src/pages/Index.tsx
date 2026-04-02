@@ -338,10 +338,12 @@ const Index = () => {
 
     if (personLoc) {
       const pNorm = personLoc.toLowerCase().trim();
-      // Check each company location for a match against person location
+      const pCity = pNorm.split(',')[0].trim();
+      // Check each company location for a match against person location (including city-level fuzzy)
       const matchingLoc = companyLocs.find((loc) => {
         const cNorm = loc.toLowerCase().trim();
-        return pNorm === cNorm || pNorm.includes(cNorm) || cNorm.includes(pNorm);
+        const cCity = cNorm.split(',')[0].trim();
+        return pNorm === cNorm || pNorm.includes(cNorm) || cNorm.includes(pNorm) || pCity === cCity;
       });
 
       if (matchingLoc) {
