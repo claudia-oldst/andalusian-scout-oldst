@@ -19,7 +19,7 @@ import {
   fetchCompanyByDomain,
   upsertCompany,
 } from '@/lib/supabase-queries';
-import { firecrawlApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, extractLocationsViaLLM } from '@/lib/api/firecrawl';
 import { extractCompanyLocationsFromMarkdown, extractLocationFromDescription, extractLocationFromGoogleHtml } from '@/lib/extract-location';
 import { extractDomainFromEmail, extractRawDomain } from '@/lib/extract-domain';
 import { useToast } from '@/hooks/use-toast';
