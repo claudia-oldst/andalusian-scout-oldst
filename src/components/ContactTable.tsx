@@ -98,7 +98,7 @@ export const ContactTable = ({
                 <TableCell className="text-muted-foreground text-sm py-2.5">{contact.company_name}</TableCell>
                 <TableCell className="text-muted-foreground text-xs py-2.5">{contact.email_address}</TableCell>
                 <TableCell className="text-sm py-2.5">{contact.person_location_raw}</TableCell>
-                <TableCell className="text-sm py-2.5">{contact.company_location_raw}</TableCell>
+                <TableCell className="text-sm py-2.5">{contact.company_location_raw.join(', ')}</TableCell>
                 <TableCell className="py-2.5">
                   <ConfidenceBadge confidenceId={contact.confidence_id} />
                 </TableCell>
