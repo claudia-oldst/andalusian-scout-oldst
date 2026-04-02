@@ -28,7 +28,10 @@ import { RefreshCw } from 'lucide-react';
 function resolveDisplayLocation(contact: Contact): string {
   switch (contact.designation_id) {
     case DESIGNATION.PERSON: return contact.person_location_raw;
-    case DESIGNATION.COMPANY: return contact.company_location_raw.join(', ');
+    case DESIGNATION.COMPANY: {
+      const { match } = getMatchingCompanyLocation(contact);
+      return match || contact.company_location_raw.join(', ');
+    }
     case DESIGNATION.MANUAL: return contact.manual_location;
     default: return 'Select…';
   }
@@ -228,9 +231,14 @@ export const ContactTable = ({
                         {contact.person_location_raw && (
                           <SelectItem value={String(DESIGNATION.PERSON)}>{contact.person_location_raw}</SelectItem>
                         )}
-                {contact.company_location_raw.length > 0 && contact.company_location_raw.join(', ') !== contact.person_location_raw && (
-                  <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw.join(', ')}</SelectItem>
-                        )}
+                {(() => {
+                  const { match } = getMatchingCompanyLocation(contact);
+                  const companyDisplay = match || (contact.company_location_raw.length > 0 ? contact.company_location_raw.join(', ') : null);
+                  if (companyDisplay && companyDisplay !== contact.person_location_raw) {
+                    return <SelectItem value={String(DESIGNATION.COMPANY)}>{companyDisplay}</SelectItem>;
+                  }
+                  return null;
+                })()}
                         {contact.manual_location && (
                           <SelectItem value={String(DESIGNATION.MANUAL)}>{contact.manual_location}</SelectItem>
                         )}
