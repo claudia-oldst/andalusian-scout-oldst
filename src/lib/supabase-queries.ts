@@ -96,7 +96,11 @@ export async function updateContactDesignation(
   manualLocation?: string,
   manualSourceNote?: string
 ) {
-  const patch: Record<string, unknown> = { designation_id: designationId };
+  const patch: {
+    designation_id: number;
+    manual_location?: string;
+    manual_source_note?: string;
+  } = { designation_id: designationId };
   if (manualLocation !== undefined) patch.manual_location = manualLocation;
   if (manualSourceNote !== undefined) patch.manual_source_note = manualSourceNote;
 
@@ -148,7 +152,12 @@ export async function updateContactLocations(
   confidenceId: number,
   companyId?: string
 ) {
-  const patch: Record<string, unknown> = {
+  const patch: {
+    person_location_raw: string;
+    company_location_raw: string[];
+    confidence_id: number;
+    company_id?: string;
+  } = {
     person_location_raw: personLocation,
     company_location_raw: companyLocations,
     confidence_id: confidenceId,
