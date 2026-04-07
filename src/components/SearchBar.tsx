@@ -1,4 +1,4 @@
-import { Search, Upload, Download, UserPlus, Radar } from 'lucide-react';
+import { Search, Upload, Download, UserPlus, Radar, Link } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +27,7 @@ interface SearchBarProps {
   onUploadCSV: () => void;
   onExportCSV: () => void;
   onRunBulkDiscovery: () => void;
+  onAffinityImport: () => void;
   discoveryRunning?: boolean;
 }
 
@@ -41,6 +42,7 @@ export const SearchBar = ({
   onUploadCSV,
   onExportCSV,
   onRunBulkDiscovery,
+  onAffinityImport,
   discoveryRunning,
 }: SearchBarProps) => {
   return (
@@ -93,6 +95,10 @@ export const SearchBar = ({
           <DropdownMenuItem onClick={onUploadCSV}>
             <Upload className="h-4 w-4 mr-2" />
             Upload Source CSV
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onAffinityImport}>
+            <Link className="h-4 w-4 mr-2" />
+            Import from Affinity
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onAddContact}>
             <UserPlus className="h-4 w-4 mr-2" />
