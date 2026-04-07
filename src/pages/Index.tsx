@@ -5,6 +5,7 @@ import { ContactTable } from '@/components/ContactTable';
 import { ActivityLogModal } from '@/components/ActivityLogModal';
 import { ManualLocationDialog } from '@/components/ManualLocationDialog';
 import { AddContactDialog } from '@/components/AddContactDialog';
+import { AffinityImportDialog } from '@/components/AffinityImportDialog';
 import { Contact, ActivityLog, DESIGNATION } from '@/types/contact';
 import { fetchActivityLogs } from '@/lib/supabase-queries';
 import { useContacts } from '@/hooks/useContacts';
@@ -46,6 +47,7 @@ const Index = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [manualDialogContactId, setManualDialogContactId] = useState<string | null>(null);
   const [addContactOpen, setAddContactOpen] = useState(false);
+  const [affinityOpen, setAffinityOpen] = useState(false);
   const { toast } = useToast();
 
   const handleRowClick = useCallback(async (contact: Contact) => {
@@ -157,6 +159,7 @@ const Index = () => {
           onUploadCSV={handleUploadCSV}
           onExportCSV={handleExportVerified}
           onRunBulkDiscovery={handleBulkDiscovery}
+          onAffinityImport={() => setAffinityOpen(true)}
           discoveryRunning={discoveryRunning}
         />
 
@@ -226,6 +229,12 @@ const Index = () => {
         open={addContactOpen}
         onOpenChange={setAddContactOpen}
         onSubmit={handleAddContactSubmit}
+      />
+
+      <AffinityImportDialog
+        open={affinityOpen}
+        onOpenChange={setAffinityOpen}
+        invalidateContacts={invalidateContacts}
       />
     </div>
   );
