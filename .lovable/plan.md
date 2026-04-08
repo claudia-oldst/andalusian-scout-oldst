@@ -1,33 +1,21 @@
 
 
-# Fix: Use DOMParser for YrbPuc Location Extraction
+# Fix: Reorder Person Discovery — SERP Scrape First
 
 ## Problem
-The current `extractLocationFromGoogleHtml` in `src/lib/extract-location.ts` uses fragile regex patterns to find the `YrbPuc` div. A proper DOM parser would be more reliable and simpler.
+The Firecrawl Search API runs first and `extractLocationFromDescription` captures false positives (e.g. "View Rob Woodhead's profile on LinkedIn,"). Since `personLoc` gets set, the Google SERP scrape with YrbPuc extraction never runs — even though it would correctly extract "London, England, United Kingdom".
 
-## Change (single file: `src/lib/extract-location.ts`, function `extractLocationFromGoogleHtml`)
+## Solution
+Single file change in `src/hooks/useDiscovery.ts` (lines 39–73): swap the order.
 
-Replace the regex-based extraction with `DOMParser`:
+### New flow
+1. **Primary** — Build Google search URL from contact name + company → `firecrawlApi.scrape(googleSearchUrl, { formats: ['html'] })` → `extractLocationFromGoogleHtml` (DOMParser targeting `.YrbPuc span`)
+2. **Fallback** — Only if scrape fails, hits CAPTCHA, or no YrbPuc found → `firecrawlApi.search()` → `extractLocationFromDescription`
 
-```typescript
-export function extractLocationFromGoogleHtml(html: string): string {
-  if (!html) return '';
+### Secondary fix
+In `src/lib/extract-location.ts`, tighten `extractLocationFromDescription` exclusion filter by adding `LinkedIn|profile|View\s` to prevent false positives even when used as fallback.
 
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const span = doc.querySelector('.YrbPuc span');
-    const text = span?.textContent?.trim();
-    if (text) {
-      return cleanLocation(text);
-    }
-  } catch {
-    // fall through
-  }
-
-  return '';
-}
-```
-
-This replaces ~10 lines of regex with 5 lines of reliable DOM querying. The `.YrbPuc span` selector targets the first `<span>` inside the div — exactly `"London, England, United Kingdom"` from the HTML the user showed.
+### Files changed
+- `src/hooks/useDiscovery.ts` — reorder scrape-first, search-fallback (~20 lines rewritten)
+- `src/lib/extract-location.ts` — one regex update in `extractLocationFromDescription`
 
