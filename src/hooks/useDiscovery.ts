@@ -268,6 +268,7 @@ export function useDiscovery(invalidateContacts: () => void) {
 
   return {
     discoveryRunning,
+    discoveringContactId,
     handleBulkDiscovery,
     handleSingleDiscovery,
   };
