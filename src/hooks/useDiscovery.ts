@@ -37,22 +37,30 @@ export function useDiscovery(invalidateContacts: () => void) {
 
     // ── Person location: Google SERP → YrbPuc extraction ──
     try {
+      let usedScrape = false;
       const scrapeResult = await firecrawlApi.scrape(googleSearchUrl, {
         formats: ['html'],
         onlyMainContent: false,
       });
 
       if (scrapeResult.success) {
-        const html = scrapeResult.data?.html || '';
-        const locFromHtml = extractLocationFromGoogleHtml(html);
-        if (locFromHtml) {
-          personLoc = locFromHtml;
-          personSnippet = locFromHtml;
+        const html = scrapeResult.data?.html || scrapeResult.data?.data?.html || '';
+        const statusCode = scrapeResult.data?.metadata?.statusCode || scrapeResult.data?.data?.metadata?.statusCode;
+        const isCaptcha = statusCode === 429 || /google\.com\/sorry/i.test(html) || /g-recaptcha/i.test(html);
+
+        if (!isCaptcha) {
+          const locFromHtml = extractLocationFromGoogleHtml(html);
+          if (locFromHtml) {
+            personLoc = locFromHtml;
+            personSnippet = locFromHtml;
+            usedScrape = true;
+          }
         } else {
-          personSnippet = 'Google SERP scraped but YrbPuc element not found.';
+          console.warn('Google CAPTCHA detected, falling back to search API');
         }
-      } else {
-        console.warn('Google SERP scrape failed, falling back to search API:', scrapeResult.error);
+      }
+
+      if (!usedScrape) {
         const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
         if (personResult.success && personResult.data?.length > 0) {
           const linkedInResult = personResult.data.find((r: any) =>
@@ -62,6 +70,8 @@ export function useDiscovery(invalidateContacts: () => void) {
           const extracted = extractLocationFromDescription(description);
           personLoc = extracted || personLoc;
           personSnippet = description.slice(0, 500);
+        } else {
+          personSnippet = 'No results from search API fallback.';
         }
       }
     } catch (err) {
