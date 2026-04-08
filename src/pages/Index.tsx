@@ -36,6 +36,7 @@ const Index = () => {
     handleApproveAll,
     handleHILChange,
     handleManualSubmit,
+    handleDeleteContact,
     invalidateContacts,
   } = useContacts();
 
@@ -202,6 +203,7 @@ const Index = () => {
           onHILChange={handleHILChangeWithManual}
           onRowClick={handleRowClick}
           onRunDiscovery={handleRunSingleDiscovery}
+          onDeleteContact={handleDeleteContact}
           discoveryRunning={discoveryRunning}
           allVisibleApproved={allVisibleApproved}
         />

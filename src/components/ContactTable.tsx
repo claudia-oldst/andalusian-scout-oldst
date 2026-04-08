@@ -1,7 +1,18 @@
+import { useState } from 'react';
 import { Contact, DESIGNATION } from '@/types/contact';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -23,7 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import { getMatchingCompanyLocation, resolveDisplayLocation } from '@/lib/location-matching';
 
 interface ContactTableProps {
@@ -33,6 +44,7 @@ interface ContactTableProps {
   onHILChange: (id: string, designationId: number) => void;
   onRowClick: (contact: Contact) => void;
   onRunDiscovery?: (contactId: string) => void;
+  onDeleteContact?: (id: string) => void;
   discoveryRunning?: boolean;
   allVisibleApproved: boolean;
 }
@@ -103,10 +115,14 @@ export const ContactTable = ({
   onHILChange,
   onRowClick,
   onRunDiscovery,
+  onDeleteContact,
   discoveryRunning,
   allVisibleApproved,
 }: ContactTableProps) => {
+  const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
+
   return (
+    <>
     <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
       <Table>
         <TableHeader>
@@ -117,11 +133,11 @@ export const ContactTable = ({
                 onCheckedChange={(checked) => onApproveAll(!!checked)}
               />
             </TableHead>
-            {['Name', 'Company', 'Email', 'Person Location', 'Company Location', 'Confidence', 'HIL Designation'].map(
-              (col) => (
+            {['Name', 'Company', 'Email', 'Person Location', 'Company Location', 'Confidence', 'HIL Designation', ''].map(
+              (col, i) => (
                 <TableHead
-                  key={col}
-                  className="text-[11px] tracking-[0.14em] uppercase font-semibold text-muted-foreground py-3"
+                  key={i}
+                  className={col ? "text-[11px] tracking-[0.14em] uppercase font-semibold text-muted-foreground py-3" : "w-10 py-3"}
                 >
                   {col}
                 </TableHead>
@@ -132,7 +148,7 @@ export const ContactTable = ({
         <TableBody>
           {contacts.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-16 text-muted-foreground text-sm">
+              <TableCell colSpan={9} className="text-center py-16 text-muted-foreground text-sm">
                 No contacts match your search.
               </TableCell>
             </TableRow>
@@ -218,11 +234,50 @@ export const ContactTable = ({
                     )}
                   </div>
                 </TableCell>
+                <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
+                  {onDeleteContact && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteTarget(contact)}
+                      title="Delete contact"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))
           )}
         </TableBody>
       </Table>
     </div>
+
+    <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Contact</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              if (deleteTarget && onDeleteContact) {
+                onDeleteContact(deleteTarget.id);
+              }
+              setDeleteTarget(null);
+            }}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
