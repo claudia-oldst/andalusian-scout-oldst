@@ -248,6 +248,7 @@ export function useDiscovery(invalidateContacts: () => void) {
   }, [toast, invalidateContacts, runDiscoveryForContact]);
 
   const handleSingleDiscovery = useCallback(async (contact: Contact): Promise<ActivityLog[]> => {
+    setDiscoveringContactId(contact.id);
     setDiscoveryRunning(true);
     try {
       await runDiscoveryForContact(contact);
@@ -260,6 +261,7 @@ export function useDiscovery(invalidateContacts: () => void) {
       toast({ title: 'Discovery Failed', description: `Could not run discovery for ${contact.name}: ${msg}`, variant: 'destructive' });
       return [];
     } finally {
+      setDiscoveringContactId(null);
       setDiscoveryRunning(false);
     }
   }, [toast, invalidateContacts, runDiscoveryForContact]);
