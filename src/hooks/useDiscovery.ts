@@ -22,6 +22,7 @@ const COMPANY_CACHE_TTL_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
 export function useDiscovery(invalidateContacts: () => void) {
   const [discoveryRunning, setDiscoveryRunning] = useState(false);
+  const [discoveringContactId, setDiscoveringContactId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const runDiscoveryForContact = useCallback(async (contact: Contact) => {
