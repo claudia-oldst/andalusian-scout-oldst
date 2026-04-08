@@ -133,7 +133,7 @@ export function extractLocationFromDescription(description: string): string {
       trimmed.length < 80 &&
       trimmed.length > 5 &&
       /^(?:City of\s+)?[A-Z]/.test(trimmed) &&
-      !/followers|connections|See |posts|likes/i.test(trimmed)
+      !/followers|connections|See |posts|likes|LinkedIn|profile|View\s/i.test(trimmed)
     ) {
       return cleanLocation(trimmed);
     }
