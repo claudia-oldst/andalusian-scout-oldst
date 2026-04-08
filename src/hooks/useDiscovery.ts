@@ -22,6 +22,7 @@ const COMPANY_CACHE_TTL_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
 export function useDiscovery(invalidateContacts: () => void) {
   const [discoveryRunning, setDiscoveryRunning] = useState(false);
+  const [discoveringContactId, setDiscoveringContactId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const runDiscoveryForContact = useCallback(async (contact: Contact) => {
@@ -247,6 +248,7 @@ export function useDiscovery(invalidateContacts: () => void) {
   }, [toast, invalidateContacts, runDiscoveryForContact]);
 
   const handleSingleDiscovery = useCallback(async (contact: Contact): Promise<ActivityLog[]> => {
+    setDiscoveringContactId(contact.id);
     setDiscoveryRunning(true);
     try {
       await runDiscoveryForContact(contact);
@@ -259,12 +261,14 @@ export function useDiscovery(invalidateContacts: () => void) {
       toast({ title: 'Discovery Failed', description: `Could not run discovery for ${contact.name}: ${msg}`, variant: 'destructive' });
       return [];
     } finally {
+      setDiscoveringContactId(null);
       setDiscoveryRunning(false);
     }
   }, [toast, invalidateContacts, runDiscoveryForContact]);
 
   return {
     discoveryRunning,
+    discoveringContactId,
     handleBulkDiscovery,
     handleSingleDiscovery,
   };
