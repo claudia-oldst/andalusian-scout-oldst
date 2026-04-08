@@ -125,6 +125,16 @@ export function extractCompanyLocationFromMarkdown(markdown: string): string {
 export function extractLocationFromDescription(description: string): string {
   if (!description) return '';
 
+  // Priority 1: "Location: X" pattern (common in LinkedIn snippets)
+  const locLabel = description.match(/Location:\s*([^·\n]+)/i);
+  if (locLabel?.[1]) {
+    const loc = locLabel[1].trim();
+    if (loc.length > 2 && loc.length < 100) {
+      return cleanLocation(loc);
+    }
+  }
+
+  // Priority 2: comma-separated city/region segments
   const segments = description.split(/\.\s+/);
   for (const seg of segments) {
     const trimmed = seg.trim();
@@ -133,7 +143,7 @@ export function extractLocationFromDescription(description: string): string {
       trimmed.length < 80 &&
       trimmed.length > 5 &&
       /^(?:City of\s+)?[A-Z]/.test(trimmed) &&
-      !/followers|connections|See |posts|likes/i.test(trimmed)
+      !/followers|connections|See |posts|likes|LinkedIn|profile|View\s/i.test(trimmed)
     ) {
       return cleanLocation(trimmed);
     }
