@@ -14,7 +14,7 @@ type SearchOptions = {
 };
 
 type ScrapeOptions = {
-  formats?: ('markdown' | 'html' | 'links')[];
+  formats?: ('markdown' | 'html' | 'rawHtml' | 'links')[];
   onlyMainContent?: boolean;
   waitFor?: number;
 };
