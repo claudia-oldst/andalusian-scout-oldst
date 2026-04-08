@@ -58,6 +58,17 @@ export function useDiscovery(invalidateContacts: () => void) {
           }
         }
 
+        // Fallback: extract country subdomain from LinkedIn URL (e.g. "uk" from https://uk.linkedin.com)
+        if (!personLoc) {
+          for (const result of results) {
+            const urlMatch = result.url?.match(/^https?:\/\/([a-z]{2})\.linkedin\.com/i);
+            if (urlMatch?.[1] && urlMatch[1] !== 'www') {
+              personLoc = `LinkedIn country: ${urlMatch[1].toUpperCase()}`;
+              break;
+            }
+          }
+        }
+
         personSnippet = snippets.join(" | ");
       }
 
