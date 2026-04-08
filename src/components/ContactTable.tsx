@@ -118,6 +118,7 @@ export const ContactTable = ({
   onRunDiscovery,
   onDeleteContact,
   discoveryRunning,
+  discoveringContactId,
   allVisibleApproved,
 }: ContactTableProps) => {
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
