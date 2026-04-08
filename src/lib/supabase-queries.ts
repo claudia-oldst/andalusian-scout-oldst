@@ -1,5 +1,18 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Contact, ActivityLog, Lookups } from '@/types/contact';
+import type { Contact, ActivityLog, Lookups, Company } from '@/types/contact';
+
+export interface PaginatedResult<T> {
+  data: T[];
+  count: number;
+}
+
+export interface FetchContactsParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  confidenceFilter?: string;
+  approvalFilter?: 'all' | 'approved' | 'pending';
+}
 
 export async function fetchLookups(): Promise<Lookups> {
   const [conf, desig, events] = await Promise.all([
@@ -15,12 +28,53 @@ export async function fetchLookups(): Promise<Lookups> {
   };
 }
 
-export async function fetchContacts(): Promise<Contact[]> {
+export async function fetchContacts(params: FetchContactsParams = {}): Promise<PaginatedResult<Contact>> {
+  const { page = 0, pageSize = 50, search, confidenceFilter, approvalFilter } = params;
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from('contacts')
+    .select('*, confidence_level:confidence_levels(*), designation_type:designation_types(*), company:companies(website_url)', { count: 'exact' })
+    .order('created_at', { ascending: true })
+    .range(from, to);
+
+  if (search?.trim()) {
+    const q = `%${search.trim()}%`;
+    query = query.or(`name.ilike.${q},company_name.ilike.${q},email_address.ilike.${q}`);
+  }
+
+  if (confidenceFilter && confidenceFilter !== 'all') {
+    query = query.eq('confidence_id', Number(confidenceFilter));
+  }
+
+  if (approvalFilter === 'approved') {
+    query = query.eq('is_approved', true);
+  } else if (approvalFilter === 'pending') {
+    query = query.eq('is_approved', false);
+  }
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+  return { data: (data as unknown as Contact[]) || [], count: count ?? 0 };
+}
+
+export async function fetchAllContactIds(designationId?: number): Promise<string[]> {
+  let query = supabase.from('contacts').select('id');
+  if (designationId !== undefined) {
+    query = query.eq('designation_id', designationId);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((c) => c.id);
+}
+
+export async function fetchContactsByIds(ids: string[]): Promise<Contact[]> {
+  if (ids.length === 0) return [];
   const { data, error } = await supabase
     .from('contacts')
-    .select('*, confidence_level:confidence_levels(*), designation_type:designation_types(*)')
-    .order('created_at', { ascending: true });
-
+    .select('*, confidence_level:confidence_levels(*), designation_type:designation_types(*), company:companies(website_url)')
+    .in('id', ids);
   if (error) throw error;
   return (data as unknown as Contact[]) || [];
 }
@@ -42,11 +96,15 @@ export async function updateContactDesignation(
   manualLocation?: string,
   manualSourceNote?: string
 ) {
-  const patch: Record<string, unknown> = { designation_id: designationId };
+  const patch: {
+    designation_id: number;
+    manual_location?: string;
+    manual_source_note?: string;
+  } = { designation_id: designationId };
   if (manualLocation !== undefined) patch.manual_location = manualLocation;
   if (manualSourceNote !== undefined) patch.manual_source_note = manualSourceNote;
 
-  const { error } = await supabase.from('contacts').update(patch as any).eq('id', id);
+  const { error } = await supabase.from('contacts').update(patch).eq('id', id);
   if (error) throw error;
 }
 
@@ -71,34 +129,100 @@ export async function insertActivityLog(log: {
   if (error) throw error;
 }
 
-export async function upsertContactFromCSV(contact: {
+export async function bulkUpsertContacts(contacts: {
   affinity_id: string;
   name: string;
   company_name: string;
   email_address: string;
   person_location_raw: string;
-  company_location_raw: string;
+  company_location_raw: string[];
   confidence_id: number;
-}) {
+}[]) {
+  if (contacts.length === 0) return;
   const { error } = await supabase
     .from('contacts')
-    .upsert([contact] as any, { onConflict: 'affinity_id' });
+    .upsert(contacts, { onConflict: 'affinity_id' });
   if (error) throw error;
 }
 
 export async function updateContactLocations(
   id: string,
   personLocation: string,
-  companyLocation: string,
-  confidenceId: number
+  companyLocations: string[],
+  confidenceId: number,
+  companyId?: string
 ) {
+  const patch: {
+    person_location_raw: string;
+    company_location_raw: string[];
+    confidence_id: number;
+    company_id?: string;
+  } = {
+    person_location_raw: personLocation,
+    company_location_raw: companyLocations,
+    confidence_id: confidenceId,
+  };
+  if (companyId) patch.company_id = companyId;
+
   const { error } = await supabase
     .from('contacts')
-    .update({
-      person_location_raw: personLocation,
-      company_location_raw: companyLocation ? [companyLocation] : [],
-      confidence_id: confidenceId,
-    })
+    .update(patch)
     .eq('id', id);
+  if (error) throw error;
+}
+
+// ── Company cache queries ──────────────────────────────────────
+
+export async function fetchCompanyByDomain(domain: string): Promise<Company | null> {
+  const { data, error } = await supabase
+    .from('companies')
+    .select('*')
+    .eq('domain', domain)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as unknown as Company) || null;
+}
+
+export async function upsertCompany(company: {
+  domain: string;
+  name?: string;
+  hq_locations: string[];
+  website_url?: string;
+}): Promise<Company> {
+  const { data, error } = await supabase
+    .from('companies')
+    .upsert(
+      {
+        domain: company.domain,
+        name: company.name || null,
+        hq_locations: company.hq_locations,
+        website_url: company.website_url || null,
+        last_scraped_at: new Date().toISOString(),
+      },
+      { onConflict: 'domain' }
+    )
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as unknown as Company;
+}
+
+export async function linkContactToCompany(contactId: string, companyId: string) {
+  const { error } = await supabase
+    .from('contacts')
+    .update({ company_id: companyId })
+    .eq('id', contactId);
+  if (error) throw error;
+}
+
+export async function deleteContact(id: string) {
+  const { error } = await supabase.from('contacts').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function bulkDeleteContacts(ids: string[]) {
+  const { error } = await supabase.from('contacts').delete().in('id', ids);
   if (error) throw error;
 }

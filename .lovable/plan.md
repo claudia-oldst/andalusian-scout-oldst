@@ -1,40 +1,33 @@
 
 
-# Fix: LinkedIn-Only Person Location Discovery
+# Fix: Use DOMParser for YrbPuc Location Extraction
 
 ## Problem
-The person search query `"Name" "Company" location city` returns non-LinkedIn results (e.g., RocketReach). The extraction regex for `defaultLocalizedName` never matches because the markdown isn't from LinkedIn. The company search also returns irrelevant results (Companies House descriptions stored as raw location).
+The current `extractLocationFromGoogleHtml` in `src/lib/extract-location.ts` uses fragile regex patterns to find the `YrbPuc` div. A proper DOM parser would be more reliable and simpler.
 
-## Solution
-Two-step pipeline for person location:
-1. **Search** with `site:linkedin.com "Name" "Company"` to find the LinkedIn profile URL
-2. **Scrape** that LinkedIn URL using `firecrawlApi.scrape()` to get full page markdown
-3. **Extract** location from the scraped markdown using the existing `extractLocationFromMarkdown` (which targets `defaultLocalizedName`)
+## Change (single file: `src/lib/extract-location.ts`, function `extractLocationFromGoogleHtml`)
 
-Company search stays as a separate search query (no LinkedIn restriction).
+Replace the regex-based extraction with `DOMParser`:
 
-## Changes
+```typescript
+export function extractLocationFromGoogleHtml(html: string): string {
+  if (!html) return '';
 
-### `src/pages/Index.tsx` — `runDiscoveryForContact`
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const span = doc.querySelector('.YrbPuc span');
+    const text = span?.textContent?.trim();
+    if (text) {
+      return cleanLocation(text);
+    }
+  } catch {
+    // fall through
+  }
 
-**Person location (lines 180, 190-206):**
-- Change query to: `site:linkedin.com "${contact.name}" "${contact.company_name}"`
-- After search returns results, find the first result with a `linkedin.com` URL
-- Call `firecrawlApi.scrape(linkedinUrl, { formats: ['markdown'] })` on that URL
-- Extract location from the **scraped** markdown using `extractLocationFromMarkdown`
-- Fall back to search result markdown/description if scrape fails
-- Store scraped markdown snippet in activity log
+  return '';
+}
+```
 
-**Company location (lines 216-229):**
-- Keep the existing company search query pattern
-- Fix the fallback: when `extractCompanyLocationFromMarkdown` returns empty, use the `description` field (which is usually a clean summary) instead of the full markdown. But also add a `Registered office address` regex to the company extractor since Companies House data contains that pattern.
-
-### `src/lib/extract-location.ts` — `extractCompanyLocationFromMarkdown`
-
-Add a pattern for "Registered office address" followed by the address text (covers Companies House results seen in the network data).
-
-## Technical Notes
-- The scrape step costs 1 additional Firecrawl credit per contact but ensures we get the actual LinkedIn page content with `defaultLocalizedName`
-- Search with `site:linkedin.com` reliably returns LinkedIn profile URLs as top results
-- The `firecrawlApi.scrape` function and edge function already exist and work
+This replaces ~10 lines of regex with 5 lines of reliable DOM querying. The `.YrbPuc span` selector targets the first `<span>` inside the div — exactly `"London, England, United Kingdom"` from the HTML the user showed.
 

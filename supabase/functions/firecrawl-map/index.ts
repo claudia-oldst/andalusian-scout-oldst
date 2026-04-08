@@ -33,11 +33,11 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { query, options } = await req.json();
+    const { url, options } = await req.json();
 
-    if (!query || typeof query !== 'string') {
+    if (!url || typeof url !== 'string') {
       return new Response(
-        JSON.stringify({ success: false, error: 'Query is required' }),
+        JSON.stringify({ success: false, error: 'URL is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -51,23 +51,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    log('info', 'Search started', { reqId, query: query.slice(0, 200) });
+    let formattedUrl = url.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = `https://${formattedUrl}`;
+    }
+
+    log('info', 'Map started', { reqId, url: formattedUrl });
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
 
-    const response = await fetch('https://api.firecrawl.dev/v1/search', {
+    const response = await fetch('https://api.firecrawl.dev/v1/map', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        query,
-        limit: options?.limit || 5,
-        lang: options?.lang,
-        country: options?.country,
-        scrapeOptions: options?.scrapeOptions,
+        url: formattedUrl,
+        search: options?.search,
+        limit: options?.limit || 5000,
+        includeSubdomains: options?.includeSubdomains ?? false,
       }),
       signal: controller.signal,
     });
@@ -83,14 +87,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    log('info', 'Search successful', { reqId });
+    log('info', 'Map successful', { reqId });
     return new Response(
       JSON.stringify(data),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    log('error', 'Search failed', { reqId, error: error instanceof Error ? error.message : 'Unknown' });
-    const errorMessage = error instanceof Error ? error.message : 'Failed to search';
+    log('error', 'Map failed', { reqId, error: error instanceof Error ? error.message : 'Unknown' });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to map';
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -14,9 +14,15 @@ type SearchOptions = {
 };
 
 type ScrapeOptions = {
-  formats?: ('markdown' | 'html' | 'links')[];
+  formats?: ('markdown' | 'html' | 'rawHtml' | 'links')[];
   onlyMainContent?: boolean;
   waitFor?: number;
+};
+
+type MapOptions = {
+  search?: string;
+  limit?: number;
+  includeSubdomains?: boolean;
 };
 
 export const firecrawlApi = {
@@ -41,4 +47,37 @@ export const firecrawlApi = {
     }
     return data;
   },
+
+  async map(url: string, options?: MapOptions): Promise<FirecrawlResponse> {
+    const { data, error } = await supabase.functions.invoke('firecrawl-map', {
+      body: { url, options },
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return data;
+  },
 };
+
+export async function extractLocationsViaLLM(markdown: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke('extract-locations', {
+      body: { markdown },
+    });
+
+    if (error) {
+      console.warn('LLM extraction invocation failed:', error.message);
+      return [];
+    }
+
+    if (data?.success && Array.isArray(data.locations)) {
+      return data.locations;
+    }
+
+    return [];
+  } catch (err) {
+    console.warn('LLM extraction error:', err);
+    return [];
+  }
+}

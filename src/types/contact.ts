@@ -31,6 +31,12 @@ export const CONFIDENCE = {
   LOW: 3,
 } as const;
 
+// Activity log event type IDs (must match log_event_types table)
+export const EVENT_TYPE = {
+  OSINT_DISCOVERY: 1,
+  MANUAL_ENTRY: 5,
+} as const;
+
 export interface ActivityLog {
   id: string;
   contact_id: string;
@@ -43,6 +49,15 @@ export interface ActivityLog {
   event_type?: LogEventTypeLookup;
 }
 
+export interface Company {
+  id: string;
+  domain: string;
+  name: string | null;
+  hq_locations: string[];
+  website_url: string | null;
+  last_scraped_at: string | null;
+}
+
 export interface Contact {
   id: string;
   affinity_id: string | null;
@@ -50,7 +65,8 @@ export interface Contact {
   company_name: string;
   email_address: string;
   person_location_raw: string;
-  company_location_raw: string;
+  company_location_raw: string[];
+  company_id: string | null;
   confidence_id: number;
   designation_id: number;
   manual_location: string;
@@ -62,6 +78,8 @@ export interface Contact {
   // Joined from lookups
   confidence_level?: ConfidenceLevelLookup;
   designation_type?: DesignationTypeLookup;
+  // Joined from companies
+  company?: { website_url: string | null } | null;
   // Nested activity logs (loaded separately)
   activity_logs?: ActivityLog[];
 }
