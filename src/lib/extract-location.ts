@@ -148,14 +148,16 @@ export function extractLocationFromDescription(description: string): string {
 export function extractLocationFromGoogleHtml(html: string): string {
   if (!html) return '';
 
-  const match = html.match(/<div[^>]*class="[^"]*YrbPuc[^"]*"[^>]*>\s*<span[^>]*>([^<]+)<\/span>/i);
-  if (match?.[1]) {
-    return cleanLocation(match[1]);
-  }
-
-  const broader = html.match(/YrbPuc[^>]*>([^<]+)</i);
-  if (broader?.[1]) {
-    return cleanLocation(broader[1]);
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const span = doc.querySelector('.YrbPuc span');
+    const text = span?.textContent?.trim();
+    if (text) {
+      return cleanLocation(text);
+    }
+  } catch {
+    // fall through
   }
 
   return '';
