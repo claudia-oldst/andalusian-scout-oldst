@@ -65,7 +65,7 @@ export function useDiscovery(invalidateContacts: () => void) {
           ? 'CAPTCHA detected — scrape blocked.'
           : yrbPucHtml
             ? `[YrbPuc] ${yrbPucHtml}\n\nExtracted: ${personLoc || 'none'}`
-            : `No YrbPuc element found. HTML sample (first 800 chars):\n${html.slice(0, 800)}`;
+            : `No YrbPuc element found. HTML sample (chars 2000–2800):\n${html.slice(2000, 2800)}`;
       }
 
       // Fallback: Firecrawl Search API if scrape didn't yield a location
