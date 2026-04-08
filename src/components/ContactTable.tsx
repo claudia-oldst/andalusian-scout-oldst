@@ -46,6 +46,7 @@ interface ContactTableProps {
   onRunDiscovery?: (contactId: string) => void;
   onDeleteContact?: (id: string) => void;
   discoveryRunning?: boolean;
+  discoveringContactId?: string | null;
   allVisibleApproved: boolean;
 }
 

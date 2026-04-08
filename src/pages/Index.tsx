@@ -40,7 +40,7 @@ const Index = () => {
     invalidateContacts,
   } = useContacts();
 
-  const { discoveryRunning, handleBulkDiscovery, handleSingleDiscovery } = useDiscovery(invalidateContacts);
+  const { discoveryRunning, discoveringContactId, handleBulkDiscovery, handleSingleDiscovery } = useDiscovery(invalidateContacts);
   const { fileInputRef, handleUploadCSV, handleFileChange, handleExportCSV, handleAddContact } = useCSVImport(contacts, invalidateContacts);
 
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
