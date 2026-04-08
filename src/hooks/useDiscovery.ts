@@ -49,7 +49,7 @@ export function useDiscovery(invalidateContacts: () => void) {
       });
 
       if (scrapeResult.success) {
-        const html = scrapeResult.data?.html || scrapeResult.data?.data?.html || "";
+        const html = scrapeResult.data?.rawHtml || scrapeResult.data?.data?.rawHtml || "";
         const statusCode = scrapeResult.data?.metadata?.statusCode || scrapeResult.data?.data?.metadata?.statusCode;
         const isCaptcha = statusCode === 429 || /google\.com\/sorry/i.test(html) || /g-recaptcha/i.test(html);
 
