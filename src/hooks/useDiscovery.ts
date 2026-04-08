@@ -42,14 +42,23 @@ export function useDiscovery(invalidateContacts: () => void) {
 
     // ── Person location: Firecrawl Search API (primary) ──
     try {
-      const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
+      const personResult = await firecrawlApi.search(personQuery, { limit: 5 });
       if (personResult.success && personResult.data?.length > 0) {
-        const linkedInResult =
-          personResult.data.find((r: any) => r.url && r.url.includes("linkedin.com/in/")) || personResult.data[0];
-        const description = linkedInResult.description || "";
-        const extracted = extractLocationFromDescription(description);
-        personLoc = extracted || personLoc;
-        personSnippet = `[Search API] ${description.slice(0, 400)}`;
+        const results = personResult.data.slice(0, 4);
+        const snippets: string[] = [];
+
+        for (const result of results) {
+          const description = result.description || "";
+          snippets.push(`[${result.url || "?"}] ${description.slice(0, 200)}`);
+          if (!personLoc) {
+            const extracted = extractLocationFromDescription(description);
+            if (extracted) {
+              personLoc = extracted;
+            }
+          }
+        }
+
+        personSnippet = snippets.join(" | ");
       }
 
       if (!personLoc) {
