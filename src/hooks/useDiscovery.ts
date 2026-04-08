@@ -36,44 +36,54 @@ export function useDiscovery(invalidateContacts: () => void) {
     let companySnippet = 'No results found.';
     let companyId: string | undefined;
 
-    // ── Person location: Google SERP → YrbPuc extraction ──
+    // ── Person location: Google SERP scrape (primary) → Search API (fallback) ──
     try {
-      // Prioritise Firecrawl Search API over Google SERP scraping
-      const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
-      if (personResult.success && personResult.data?.length > 0) {
-        const linkedInResult = personResult.data.find((r: any) =>
-          r.url && r.url.includes('linkedin.com/in/')
-        ) || personResult.data[0];
-        const description = linkedInResult.description || '';
-        const extracted = extractLocationFromDescription(description);
-        personLoc = extracted || personLoc;
-        personSnippet = description.slice(0, 500);
+      // Primary: Scrape Google SERP and extract from YrbPuc element
+      const scrapeResult = await firecrawlApi.scrape(googleSearchUrl, {
+        formats: ['html'],
+        onlyMainContent: false,
+      });
+
+      if (scrapeResult.success) {
+        const html = scrapeResult.data?.html || scrapeResult.data?.data?.html || '';
+        const statusCode = scrapeResult.data?.metadata?.statusCode || scrapeResult.data?.data?.metadata?.statusCode;
+        const isCaptcha = statusCode === 429 || /google\.com\/sorry/i.test(html) || /g-recaptcha/i.test(html);
+
+        // Extract the YrbPuc element HTML for debugging
+        const yrbPucMatch = html.match(/<div class="YrbPuc"[^>]*>[\s\S]*?<\/div>/i);
+        const yrbPucHtml = yrbPucMatch ? yrbPucMatch[0] : null;
+
+        if (!isCaptcha) {
+          const locFromHtml = extractLocationFromGoogleHtml(html);
+          if (locFromHtml) {
+            personLoc = locFromHtml;
+          }
+        }
+
+        // Store debug info: YrbPuc element if found, otherwise a chunk of the HTML
+        personSnippet = isCaptcha
+          ? 'CAPTCHA detected — scrape blocked.'
+          : yrbPucHtml
+            ? `[YrbPuc] ${yrbPucHtml}\n\nExtracted: ${personLoc || 'none'}`
+            : `No YrbPuc element found. HTML sample (first 800 chars):\n${html.slice(0, 800)}`;
       }
 
-      // If Search API didn't yield a location, try Google SERP scrape as fallback
+      // Fallback: Firecrawl Search API if scrape didn't yield a location
       if (!personLoc) {
-        const scrapeResult = await firecrawlApi.scrape(googleSearchUrl, {
-          formats: ['html'],
-          onlyMainContent: false,
-        });
-
-        if (scrapeResult.success) {
-          const html = scrapeResult.data?.html || scrapeResult.data?.data?.html || '';
-          const statusCode = scrapeResult.data?.metadata?.statusCode || scrapeResult.data?.data?.metadata?.statusCode;
-          const isCaptcha = statusCode === 429 || /google\.com\/sorry/i.test(html) || /g-recaptcha/i.test(html);
-
-          if (!isCaptcha) {
-            const locFromHtml = extractLocationFromGoogleHtml(html);
-            if (locFromHtml) {
-              personLoc = locFromHtml;
-              personSnippet = locFromHtml;
-            }
-          }
+        const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
+        if (personResult.success && personResult.data?.length > 0) {
+          const linkedInResult = personResult.data.find((r: any) =>
+            r.url && r.url.includes('linkedin.com/in/')
+          ) || personResult.data[0];
+          const description = linkedInResult.description || '';
+          const extracted = extractLocationFromDescription(description);
+          personLoc = extracted || personLoc;
+          personSnippet += `\n\n[Search API fallback] ${description.slice(0, 400)}`;
         }
       }
 
       if (!personLoc) {
-        personSnippet = personSnippet || 'No person location found from search or SERP.';
+        personSnippet = personSnippet || 'No person location found from SERP or search.';
       }
     } catch (err) {
       console.error('Person location discovery failed:', err);
