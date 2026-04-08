@@ -138,6 +138,20 @@ export function useContacts() {
     setPage(0);
   }, []);
 
+  const handleDeleteContact = useCallback(
+    async (id: string) => {
+      try {
+        await deleteContact(id);
+        invalidateContacts();
+        toast({ title: 'Contact Deleted', description: 'The contact has been removed.' });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        toast({ title: 'Delete Failed', description: `Could not delete contact: ${msg}`, variant: 'destructive' });
+      }
+    },
+    [toast, invalidateContacts]
+  );
+
   return {
     contacts,
     lookups: lookups ?? null,
@@ -158,6 +172,7 @@ export function useContacts() {
     handleApproveAll,
     handleHILChange,
     handleManualSubmit,
+    handleDeleteContact,
     invalidateContacts,
     refetchContacts,
   };
