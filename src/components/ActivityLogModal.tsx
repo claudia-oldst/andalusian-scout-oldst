@@ -16,9 +16,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ExternalLink, Radar } from 'lucide-react';
+import { ExternalLink, Search, Globe, RefreshCw, MapPin, Linkedin, Pencil, Radar } from 'lucide-react';
 import { format } from 'date-fns';
-import { getMatchingCompanyLocation, resolveDisplayLocation } from '@/lib/location-matching';
+
+const iconMap: Record<string, React.ElementType> = {
+  search: Search,
+  linkedin: Linkedin,
+  globe: Globe,
+  refresh: RefreshCw,
+  edit: Pencil,
+};
+
+const colorMap: Record<string, string> = {
+  search: 'bg-accent',
+  linkedin: 'bg-accent',
+  globe: 'bg-steel',
+  refresh: 'bg-secondary',
+  edit: 'bg-primary',
+};
 
 interface ActivityLogModalProps {
   contact: Contact | null;
@@ -29,6 +44,15 @@ interface ActivityLogModalProps {
   onHILChange: (id: string, designationId: number) => void;
   onRunDiscovery?: (contactId: string) => void;
   discoveryRunning?: boolean;
+}
+
+function resolveDisplayLocation(contact: Contact): string {
+  switch (contact.designation_id) {
+    case DESIGNATION.PERSON: return contact.person_location_raw;
+    case DESIGNATION.COMPANY: return contact.company_location_raw;
+    case DESIGNATION.MANUAL: return contact.manual_location;
+    default: return 'Select designation…';
+  }
 }
 
 export const ActivityLogModal = ({
@@ -56,8 +80,8 @@ export const ActivityLogModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between mb-4">
             <h3 className="text-[10px] tracking-[0.15em] uppercase font-semibold text-muted-foreground">
               Discovery Path
             </h3>
@@ -75,53 +99,61 @@ export const ActivityLogModal = ({
             )}
           </div>
 
-          {activityLogs.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic py-4">
-              No activity logs yet. Run discovery to start.
-            </p>
-          ) : (
-            <div className="border border-border rounded-md divide-y divide-border">
+          <div className="relative pl-6">
+            <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
+
+            <div className="space-y-6">
+              {activityLogs.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No activity logs yet. Run discovery to start.</p>
+              )}
               {activityLogs.map((log) => {
-                const label = log.event_type?.label || 'Event';
+                const iconName = log.event_type?.icon_name || 'search';
+                const Icon = iconMap[iconName] || Search;
+                const bgColor = colorMap[iconName] || 'bg-accent';
+                const label = log.event_type?.label || 'Unknown Event';
+
                 return (
-                  <div key={log.id} className="px-4 py-3">
-                    <div className="flex items-baseline justify-between gap-3 mb-1">
-                      <span className="text-xs font-semibold text-foreground">
-                        {label}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                        {format(new Date(log.created_at), 'MMM d, yyyy · HH:mm')}
-                      </span>
+                  <div key={log.id} className="relative">
+                    <div className={`absolute -left-6 top-1 h-[22px] w-[22px] rounded-full ${bgColor} flex items-center justify-center`}>
+                      <Icon className="h-3 w-3 text-white" />
                     </div>
 
-                    {log.query_used && (
-                      <code className="block text-[11px] bg-muted/60 text-muted-foreground rounded px-2 py-1 font-mono break-all mb-1.5">
-                        {log.query_used}
-                      </code>
-                    )}
+                    <div className="bg-muted/40 rounded-lg p-4 border border-border/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold tracking-wider uppercase text-foreground">
+                          {label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(new Date(log.created_at), 'MMM d, yyyy · HH:mm')}
+                        </span>
+                      </div>
 
-                    {log.result_snippet && (
-                      <p className="text-xs text-foreground/70 leading-relaxed">
-                        {log.result_snippet}
-                      </p>
-                    )}
+                      <div className="mb-2">
+                        <span className="text-[10px] tracking-wider uppercase text-muted-foreground">Query</span>
+                        <code className="block mt-1 text-xs bg-primary/10 text-foreground rounded px-2 py-1.5 font-mono break-all">
+                          {log.query_used}
+                        </code>
+                      </div>
 
-                    {log.source_url && (
-                      <a
-                        href={log.source_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-accent hover:underline mt-1"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        {log.source_url}
-                      </a>
-                    )}
+                      <p className="text-sm text-foreground/80 mb-2">{log.result_snippet}</p>
+
+                      {log.source_url && (
+                        <a
+                          href={log.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View Source
+                        </a>
+                      )}
+                    </div>
                   </div>
                 );
               })}
             </div>
-          )}
+          </div>
         </div>
 
         <DialogFooter className="flex items-center gap-3 pt-4 border-t border-border/30">
@@ -138,14 +170,9 @@ export const ActivityLogModal = ({
               {contact.person_location_raw && (
                 <SelectItem value={String(DESIGNATION.PERSON)}>{contact.person_location_raw}</SelectItem>
               )}
-              {(() => {
-                const { match } = getMatchingCompanyLocation(contact);
-                const companyDisplay = match || (contact.company_location_raw.length > 0 ? contact.company_location_raw.join(', ') : null);
-                if (companyDisplay && companyDisplay !== contact.person_location_raw) {
-                  return <SelectItem value={String(DESIGNATION.COMPANY)}>{companyDisplay}</SelectItem>;
-                }
-                return null;
-              })()}
+              {contact.company_location_raw && contact.company_location_raw !== contact.person_location_raw && (
+                <SelectItem value={String(DESIGNATION.COMPANY)}>{contact.company_location_raw}</SelectItem>
+              )}
               {contact.manual_location && (
                 <SelectItem value={String(DESIGNATION.MANUAL)}>{contact.manual_location}</SelectItem>
               )}

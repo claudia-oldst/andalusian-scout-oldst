@@ -29,7 +29,7 @@ export const AddContactDialog = ({ open, onOpenChange, onSubmit }: AddContactDia
     if (!name.trim()) e.name = 'Name is required';
     if (!companyName.trim()) e.companyName = 'Company is required';
     if (!email.trim()) e.email = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Please enter a valid email address';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Invalid email';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -37,7 +37,7 @@ export const AddContactDialog = ({ open, onOpenChange, onSubmit }: AddContactDia
   const handleSubmit = () => {
     if (!validate()) return;
     onSubmit({
-      affinity_id: affinityId.trim() || crypto.randomUUID(),
+      affinity_id: affinityId.trim() || `manual-${Date.now()}`,
       name: name.trim(),
       company_name: companyName.trim(),
       email_address: email.trim(),
@@ -64,7 +64,7 @@ export const AddContactDialog = ({ open, onOpenChange, onSubmit }: AddContactDia
             <Input
               value={affinityId}
               onChange={(e) => setAffinityId(e.target.value)}
-              placeholder="Optional — auto-generated if blank"
+              placeholder="Optional"
               className="h-8 text-sm mt-1"
               maxLength={100}
             />

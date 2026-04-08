@@ -1,4 +1,4 @@
-import { Search, Upload, Download, UserPlus, Radar, Link } from 'lucide-react';
+import { Search, ChevronDown, Upload, Download, ArrowUpFromLine, Radar, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronDown } from 'lucide-react';
 
 interface SearchBarProps {
   searchTerm: string;
@@ -23,13 +22,55 @@ interface SearchBarProps {
   onConfidenceFilterChange: (value: string) => void;
   approvalFilter: 'all' | 'approved' | 'pending';
   onApprovalFilterChange: (value: 'all' | 'approved' | 'pending') => void;
+  onFetchContacts: () => void;
   onAddContact: () => void;
   onUploadCSV: () => void;
+  onPushToAffinity: () => void;
   onExportCSV: () => void;
   onRunBulkDiscovery: () => void;
-  onAffinityImport: () => void;
   discoveryRunning?: boolean;
 }
+
+const SplitButton = ({
+  label,
+  icon: Icon,
+  onClick,
+  dropdownItems,
+}: {
+  label: string;
+  icon: React.ElementType;
+  onClick: () => void;
+  dropdownItems: { label: string; icon: React.ElementType; onClick: () => void }[];
+}) => (
+  <div className="flex">
+    <Button
+      onClick={onClick}
+      size="sm"
+      className="rounded-r-none bg-accent text-accent-foreground hover:bg-accent/90 text-[11px] tracking-[0.12em] uppercase font-medium h-9"
+    >
+      <Icon className="h-3.5 w-3.5 mr-1.5" />
+      {label}
+    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          className="rounded-l-none border-l border-white/20 bg-accent text-accent-foreground hover:bg-accent/90 px-1.5 h-9"
+        >
+          <ChevronDown className="h-3.5 w-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {dropdownItems.map((item) => (
+          <DropdownMenuItem key={item.label} onClick={item.onClick}>
+            <item.icon className="h-4 w-4 mr-2" />
+            {item.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
+);
 
 export const SearchBar = ({
   searchTerm,
@@ -38,11 +79,12 @@ export const SearchBar = ({
   onConfidenceFilterChange,
   approvalFilter,
   onApprovalFilterChange,
+  onFetchContacts,
   onAddContact,
   onUploadCSV,
+  onPushToAffinity,
   onExportCSV,
   onRunBulkDiscovery,
-  onAffinityImport,
   discoveryRunning,
 }: SearchBarProps) => {
   return (
@@ -53,11 +95,11 @@ export const SearchBar = ({
           placeholder="Search by name, company, or email…"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9 h-10 bg-card border-border focus-visible:ring-accent text-sm"
+          className="pl-9 h-9 bg-card border-border focus-visible:ring-accent text-sm"
         />
       </div>
       <Select value={confidenceFilter} onValueChange={onConfidenceFilterChange}>
-        <SelectTrigger className="h-10 w-[140px] text-sm border-border bg-card">
+        <SelectTrigger className="h-9 w-[130px] text-xs border-border bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -68,7 +110,7 @@ export const SearchBar = ({
         </SelectContent>
       </Select>
       <Select value={approvalFilter} onValueChange={(v) => onApprovalFilterChange(v as 'all' | 'approved' | 'pending')}>
-        <SelectTrigger className="h-10 w-[130px] text-sm border-border bg-card">
+        <SelectTrigger className="h-9 w-[120px] text-xs border-border bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -78,53 +120,29 @@ export const SearchBar = ({
         </SelectContent>
       </Select>
       <div className="w-px h-6 bg-border" />
-
-      {/* Import / Add dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="sm"
-            className="bg-accent text-accent-foreground hover:bg-accent/90 text-xs tracking-[0.12em] uppercase font-medium h-10 gap-1.5"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            Import
-            <ChevronDown className="h-3 w-3" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={onUploadCSV}>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Source CSV
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onAffinityImport}>
-            <Link className="h-4 w-4 mr-2" />
-            Import from Affinity
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onAddContact}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Contact Manually
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Export */}
-      <Button
-        onClick={onExportCSV}
-        size="sm"
-        variant="outline"
-        className="h-10 text-xs tracking-[0.12em] uppercase font-medium gap-1.5"
-      >
-        <Download className="h-3.5 w-3.5" />
-        Export
-      </Button>
-
-      {/* Discovery */}
+      <SplitButton
+        label="Find Contacts"
+        icon={Search}
+        onClick={onFetchContacts}
+        dropdownItems={[
+          { label: 'Upload Source CSV', icon: Upload, onClick: onUploadCSV },
+          { label: 'Add Contact Manually', icon: UserPlus, onClick: onAddContact },
+        ]}
+      />
+      <SplitButton
+        label="Map Contacts"
+        icon={ArrowUpFromLine}
+        onClick={onPushToAffinity}
+        dropdownItems={[
+          { label: 'Export Verified CSV', icon: Download, onClick: onExportCSV },
+        ]}
+      />
       <Button
         onClick={onRunBulkDiscovery}
         disabled={discoveryRunning}
         size="sm"
         variant="outline"
-        className="h-10 text-xs tracking-[0.12em] uppercase font-medium gap-1.5"
+        className="h-9 text-[11px] tracking-[0.12em] uppercase font-medium gap-1.5"
         title="Run OSINT discovery on all pending contacts"
       >
         <Radar className="h-3.5 w-3.5" />

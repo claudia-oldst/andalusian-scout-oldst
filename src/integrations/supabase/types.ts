@@ -59,33 +59,6 @@ export type Database = {
           },
         ]
       }
-      companies: {
-        Row: {
-          domain: string
-          hq_locations: string[] | null
-          id: string
-          last_scraped_at: string | null
-          name: string | null
-          website_url: string | null
-        }
-        Insert: {
-          domain: string
-          hq_locations?: string[] | null
-          id?: string
-          last_scraped_at?: string | null
-          name?: string | null
-          website_url?: string | null
-        }
-        Update: {
-          domain?: string
-          hq_locations?: string[] | null
-          id?: string
-          last_scraped_at?: string | null
-          name?: string | null
-          website_url?: string | null
-        }
-        Relationships: []
-      }
       confidence_levels: {
         Row: {
           color_hex: string | null
@@ -107,8 +80,7 @@ export type Database = {
       contacts: {
         Row: {
           affinity_id: string | null
-          company_id: string | null
-          company_location_raw: string[] | null
+          company_location_raw: string | null
           company_name: string
           confidence_id: number | null
           created_at: string | null
@@ -125,8 +97,7 @@ export type Database = {
         }
         Insert: {
           affinity_id?: string | null
-          company_id?: string | null
-          company_location_raw?: string[] | null
+          company_location_raw?: string | null
           company_name: string
           confidence_id?: number | null
           created_at?: string | null
@@ -143,8 +114,7 @@ export type Database = {
         }
         Update: {
           affinity_id?: string | null
-          company_id?: string | null
-          company_location_raw?: string[] | null
+          company_location_raw?: string | null
           company_name?: string
           confidence_id?: number | null
           created_at?: string | null
@@ -160,13 +130,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "contacts_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "contacts_confidence_id_fkey"
             columns: ["confidence_id"]
