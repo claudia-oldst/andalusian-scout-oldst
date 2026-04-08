@@ -33,7 +33,7 @@ export function useDiscovery(invalidateContacts: () => void) {
     const personQuery = `site:linkedin.com "${contact.name}" "${contact.company_name}"`;
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(personQuery)}`;
 
-    let personLoc = contact.person_location_raw || "";
+    let personLoc = "";
     let companyLocs: string[] = contact.company_location_raw || [];
     let companySourceUrl = "";
     let personSnippet = "No results found.";
