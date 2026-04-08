@@ -40,53 +40,20 @@ export function useDiscovery(invalidateContacts: () => void) {
     let companySnippet = "No results found.";
     let companyId: string | undefined;
 
-    // ── Person location: Google SERP scrape (primary) → Search API (fallback) ──
+    // ── Person location: Firecrawl Search API (primary) ──
     try {
-      // Primary: Scrape Google SERP and extract from YrbPuc element
-      const scrapeResult = await firecrawlApi.scrape(googleSearchUrl, {
-        formats: ["rawHtml"],
-        onlyMainContent: false,
-      });
-
-      if (scrapeResult.success) {
-        const html = scrapeResult.data?.rawHtml || scrapeResult.data?.data?.rawHtml || "";
-        const statusCode = scrapeResult.data?.metadata?.statusCode || scrapeResult.data?.data?.metadata?.statusCode;
-        const isCaptcha = statusCode === 429 || /google\.com\/sorry/i.test(html) || /g-recaptcha/i.test(html);
-
-        // Extract the YrbPuc element HTML for debugging
-        const yrbPucMatch = html.match(/<div class="YrbPuc"[^>]*>[\s\S]*?<\/div>/i);
-        const yrbPucHtml = yrbPucMatch ? yrbPucMatch[0] : null;
-
-        if (!isCaptcha) {
-          const locFromHtml = extractLocationFromGoogleHtml(html);
-          if (locFromHtml) {
-            personLoc = locFromHtml;
-          }
-        }
-
-        // Store debug info: YrbPuc element if found, otherwise a chunk of the HTML
-        personSnippet = isCaptcha
-          ? "CAPTCHA detected — scrape blocked."
-          : yrbPucHtml
-            ? `[YrbPuc] ${yrbPucHtml}\n\nExtracted: ${personLoc || "none"}`
-            : `No YrbPuc element found. HTML sample (chars 20000–20800):\n${html.slice(305000, 306000)}`;
-      }
-
-      // Fallback: Firecrawl Search API if scrape didn't yield a location
-      if (!personLoc) {
-        const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
-        if (personResult.success && personResult.data?.length > 0) {
-          const linkedInResult =
-            personResult.data.find((r: any) => r.url && r.url.includes("linkedin.com/in/")) || personResult.data[0];
-          const description = linkedInResult.description || "";
-          const extracted = extractLocationFromDescription(description);
-          personLoc = extracted || personLoc;
-          personSnippet += `\n\n[Search API fallback] ${description.slice(0, 400)}`;
-        }
+      const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
+      if (personResult.success && personResult.data?.length > 0) {
+        const linkedInResult =
+          personResult.data.find((r: any) => r.url && r.url.includes("linkedin.com/in/")) || personResult.data[0];
+        const description = linkedInResult.description || "";
+        const extracted = extractLocationFromDescription(description);
+        personLoc = extracted || personLoc;
+        personSnippet = `[Search API] ${description.slice(0, 400)}`;
       }
 
       if (!personLoc) {
-        personSnippet = personSnippet || "No person location found from SERP or search.";
+        personSnippet = personSnippet || "No person location found from search.";
       }
     } catch (err) {
       console.error("Person location discovery failed:", err);
