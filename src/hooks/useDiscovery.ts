@@ -38,42 +38,42 @@ export function useDiscovery(invalidateContacts: () => void) {
 
     // ── Person location: Google SERP → YrbPuc extraction ──
     try {
-      let usedScrape = false;
-      const scrapeResult = await firecrawlApi.scrape(googleSearchUrl, {
-        formats: ['html'],
-        onlyMainContent: false,
-      });
+      // Prioritise Firecrawl Search API over Google SERP scraping
+      const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
+      if (personResult.success && personResult.data?.length > 0) {
+        const linkedInResult = personResult.data.find((r: any) =>
+          r.url && r.url.includes('linkedin.com/in/')
+        ) || personResult.data[0];
+        const description = linkedInResult.description || '';
+        const extracted = extractLocationFromDescription(description);
+        personLoc = extracted || personLoc;
+        personSnippet = description.slice(0, 500);
+      }
 
-      if (scrapeResult.success) {
-        const html = scrapeResult.data?.html || scrapeResult.data?.data?.html || '';
-        const statusCode = scrapeResult.data?.metadata?.statusCode || scrapeResult.data?.data?.metadata?.statusCode;
-        const isCaptcha = statusCode === 429 || /google\.com\/sorry/i.test(html) || /g-recaptcha/i.test(html);
+      // If Search API didn't yield a location, try Google SERP scrape as fallback
+      if (!personLoc) {
+        const scrapeResult = await firecrawlApi.scrape(googleSearchUrl, {
+          formats: ['html'],
+          onlyMainContent: false,
+        });
 
-        if (!isCaptcha) {
-          const locFromHtml = extractLocationFromGoogleHtml(html);
-          if (locFromHtml) {
-            personLoc = locFromHtml;
-            personSnippet = locFromHtml;
-            usedScrape = true;
+        if (scrapeResult.success) {
+          const html = scrapeResult.data?.html || scrapeResult.data?.data?.html || '';
+          const statusCode = scrapeResult.data?.metadata?.statusCode || scrapeResult.data?.data?.metadata?.statusCode;
+          const isCaptcha = statusCode === 429 || /google\.com\/sorry/i.test(html) || /g-recaptcha/i.test(html);
+
+          if (!isCaptcha) {
+            const locFromHtml = extractLocationFromGoogleHtml(html);
+            if (locFromHtml) {
+              personLoc = locFromHtml;
+              personSnippet = locFromHtml;
+            }
           }
-        } else {
-          console.warn('Google CAPTCHA detected, falling back to search API');
         }
       }
 
-      if (!usedScrape) {
-        const personResult = await firecrawlApi.search(personQuery, { limit: 3 });
-        if (personResult.success && personResult.data?.length > 0) {
-          const linkedInResult = personResult.data.find((r: any) =>
-            r.url && r.url.includes('linkedin.com/in/')
-          ) || personResult.data[0];
-          const description = linkedInResult.description || '';
-          const extracted = extractLocationFromDescription(description);
-          personLoc = extracted || personLoc;
-          personSnippet = description.slice(0, 500);
-        } else {
-          personSnippet = 'No results from search API fallback.';
-        }
+      if (!personLoc) {
+        personSnippet = personSnippet || 'No person location found from search or SERP.';
       }
     } catch (err) {
       console.error('Person location discovery failed:', err);
