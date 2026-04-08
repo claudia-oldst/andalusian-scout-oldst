@@ -227,11 +227,11 @@ export const ContactTable = ({
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 shrink-0"
-                        disabled={discoveryRunning}
+                        disabled={discoveringContactId === contact.id || discoveryRunning}
                         onClick={() => onRunDiscovery(contact.id)}
                         title="Re-run OSINT discovery for this contact"
                       >
-                        <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${discoveryRunning ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${discoveringContactId === contact.id ? 'animate-spin' : ''}`} />
                       </Button>
                     )}
                   </div>
