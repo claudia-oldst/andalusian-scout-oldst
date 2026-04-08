@@ -44,7 +44,7 @@ export function useDiscovery(invalidateContacts: () => void) {
     try {
       // Primary: Scrape Google SERP and extract from YrbPuc element
       const scrapeResult = await firecrawlApi.scrape(googleSearchUrl, {
-        formats: ["html"],
+        formats: ["rawHtml"],
         onlyMainContent: false,
       });
 
