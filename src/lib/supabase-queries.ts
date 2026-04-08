@@ -216,3 +216,13 @@ export async function linkContactToCompany(contactId: string, companyId: string)
     .eq('id', contactId);
   if (error) throw error;
 }
+
+export async function deleteContact(id: string) {
+  const { error } = await supabase.from('contacts').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function bulkDeleteContacts(ids: string[]) {
+  const { error } = await supabase.from('contacts').delete().in('id', ids);
+  if (error) throw error;
+}

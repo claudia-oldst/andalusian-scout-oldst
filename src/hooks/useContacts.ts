@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo } from 'react';
-import { fetchContacts, fetchLookups, toggleApproval, bulkSetApproval, updateContactDesignation, insertActivityLog, type FetchContactsParams } from '@/lib/supabase-queries';
+import { fetchContacts, fetchLookups, toggleApproval, bulkSetApproval, updateContactDesignation, insertActivityLog, deleteContact, bulkDeleteContacts, type FetchContactsParams } from '@/lib/supabase-queries';
 import { Contact, Lookups, DESIGNATION, EVENT_TYPE } from '@/types/contact';
 import { useToast } from '@/hooks/use-toast';
 
