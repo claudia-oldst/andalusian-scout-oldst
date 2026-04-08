@@ -1,7 +1,18 @@
+import { useState } from 'react';
 import { Contact, DESIGNATION } from '@/types/contact';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -23,7 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import { getMatchingCompanyLocation, resolveDisplayLocation } from '@/lib/location-matching';
 
 interface ContactTableProps {
@@ -33,6 +44,7 @@ interface ContactTableProps {
   onHILChange: (id: string, designationId: number) => void;
   onRowClick: (contact: Contact) => void;
   onRunDiscovery?: (contactId: string) => void;
+  onDeleteContact?: (id: string) => void;
   discoveryRunning?: boolean;
   allVisibleApproved: boolean;
 }
@@ -103,10 +115,14 @@ export const ContactTable = ({
   onHILChange,
   onRowClick,
   onRunDiscovery,
+  onDeleteContact,
   discoveryRunning,
   allVisibleApproved,
 }: ContactTableProps) => {
+  const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
+
   return (
+    <>
     <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
       <Table>
         <TableHeader>
