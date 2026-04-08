@@ -46,7 +46,7 @@ export async function updateContactDesignation(
   if (manualLocation !== undefined) patch.manual_location = manualLocation;
   if (manualSourceNote !== undefined) patch.manual_source_note = manualSourceNote;
 
-  const { error } = await supabase.from('contacts').update(patch).eq('id', id);
+  const { error } = await supabase.from('contacts').update(patch as any).eq('id', id);
   if (error) throw error;
 }
 
@@ -82,7 +82,7 @@ export async function upsertContactFromCSV(contact: {
 }) {
   const { error } = await supabase
     .from('contacts')
-    .upsert(contact, { onConflict: 'affinity_id' });
+    .upsert([contact] as any, { onConflict: 'affinity_id' });
   if (error) throw error;
 }
 
@@ -96,7 +96,7 @@ export async function updateContactLocations(
     .from('contacts')
     .update({
       person_location_raw: personLocation,
-      company_location_raw: companyLocation,
+      company_location_raw: companyLocation ? [companyLocation] : [],
       confidence_id: confidenceId,
     })
     .eq('id', id);
