@@ -205,6 +205,7 @@ const Index = () => {
           onRunDiscovery={handleRunSingleDiscovery}
           onDeleteContact={handleDeleteContact}
           discoveryRunning={discoveryRunning}
+          discoveringContactId={discoveringContactId}
           allVisibleApproved={allVisibleApproved}
         />
       </main>
