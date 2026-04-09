@@ -38,6 +38,8 @@ export function useDiscovery(invalidateContacts: () => void) {
     let companyLocs: string[] = contact.company_location_raw || [];
     let companySourceUrl = "";
     let personSnippet = "No results found.";
+    let companySnippet = "No results found.";
+    let companyId: string | undefined;
 
     // ── Person location: Firecrawl Search API (primary) ──
     try {
