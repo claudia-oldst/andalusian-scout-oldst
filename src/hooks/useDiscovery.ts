@@ -42,7 +42,10 @@ export function useDiscovery(invalidateContacts: () => void) {
 
     // ── Person location: Firecrawl Search API (primary) ──
     try {
-      const personResult = await firecrawlApi.search(personQuery, { limit: 5 });
+      const personResult = await firecrawlApi.search(personQuery, {
+        limit: 5,
+        scrapeOptions: { formats: ['html'] },
+      });
       if (personResult.success && personResult.data?.length > 0) {
         const results = personResult.data.slice(0, 4);
         const snippets: string[] = [];
@@ -51,9 +54,16 @@ export function useDiscovery(invalidateContacts: () => void) {
           const description = result.description || "";
           snippets.push(`[${result.url || "?"}] ${description.slice(0, 200)}`);
           if (!personLoc) {
-            const extracted = extractLocationFromDescription(description);
-            if (extracted) {
-              personLoc = extracted;
+            // Try HTML DOM parsing first (Google SERP .YrbPuc span)
+            const htmlContent = result.html || result.data?.html || "";
+            if (htmlContent) {
+              const fromHtml = extractLocationFromGoogleHtml(htmlContent);
+              if (fromHtml) personLoc = fromHtml;
+            }
+            // Fallback to description regex
+            if (!personLoc) {
+              const extracted = extractLocationFromDescription(description);
+              if (extracted) personLoc = extracted;
             }
           }
         }
