@@ -100,11 +100,33 @@ export const ActivityLogModal = ({
                       </code>
                     )}
 
-                    {log.result_snippet && (
-                      <p className="text-xs text-foreground/70 leading-relaxed">
-                        {log.result_snippet}
-                      </p>
-                    )}
+                    {log.result_snippet && (() => {
+                      const methodMatch = log.result_snippet.match(/^Method:\s*(.+?)\.\s*Location:\s*(.+?)\.\s*\|\s*([\s\S]*)$/);
+                      if (methodMatch) {
+                        const [, method, location, rest] = methodMatch;
+                        return (
+                          <div className="space-y-1.5">
+                            <div className="flex flex-wrap gap-1.5 text-[11px]">
+                              <span className="inline-flex items-center gap-1 bg-accent/15 text-accent rounded px-1.5 py-0.5 font-medium">
+                                {method}
+                              </span>
+                              <span className="inline-flex items-center gap-1 bg-primary/10 text-primary rounded px-1.5 py-0.5 font-medium">
+                                📍 {location}
+                              </span>
+                            </div>
+                            <p className="text-xs text-foreground/50 leading-relaxed line-clamp-3">
+                              {rest}
+                            </p>
+                          </div>
+                        );
+                      }
+                      // Non-method snippets (e.g. company discovery)
+                      return (
+                        <p className="text-xs text-foreground/70 leading-relaxed">
+                          {log.result_snippet}
+                        </p>
+                      );
+                    })()}
 
                     {log.source_url && (
                       <a
