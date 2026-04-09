@@ -44,8 +44,8 @@ export function useDiscovery(invalidateContacts: () => void) {
     // ── Person location: Firecrawl Search API (primary) ──
     try {
       const personResult = await firecrawlApi.search(personQuery, {
-        limit: 5,
-        scrapeOptions: { formats: ['html'] },
+        limit: 10,
+        scrapeOptions: { formats: ["html"] },
       });
       if (personResult.success && personResult.data?.length > 0) {
         const results = personResult.data.slice(0, 4);
@@ -79,7 +79,7 @@ export function useDiscovery(invalidateContacts: () => void) {
         if (!personLoc) {
           for (const result of results) {
             const urlMatch = result.url?.match(/^https?:\/\/([a-z]{2})\.linkedin\.com/i);
-            if (urlMatch?.[1] && urlMatch[1] !== 'www') {
+            if (urlMatch?.[1] && urlMatch[1] !== "www") {
               personLoc = `LinkedIn country: ${urlMatch[1].toUpperCase()}`;
               personLocMethod = "LinkedIn URL subdomain (fallback — no location in HTML or description)";
               break;
