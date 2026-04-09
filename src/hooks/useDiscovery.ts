@@ -34,11 +34,10 @@ export function useDiscovery(invalidateContacts: () => void) {
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(personQuery)}`;
 
     let personLoc = "";
+    let personLocMethod = "";
     let companyLocs: string[] = contact.company_location_raw || [];
     let companySourceUrl = "";
     let personSnippet = "No results found.";
-    let companySnippet = "No results found.";
-    let companyId: string | undefined;
 
     // ── Person location: Firecrawl Search API (primary) ──
     try {
@@ -58,28 +57,38 @@ export function useDiscovery(invalidateContacts: () => void) {
             const htmlContent = result.html || result.data?.html || "";
             if (htmlContent) {
               const fromHtml = extractLocationFromGoogleHtml(htmlContent);
-              if (fromHtml) personLoc = fromHtml;
+              if (fromHtml) {
+                personLoc = fromHtml;
+                personLocMethod = "HTML DOMParser (.YrbPuc span)";
+              }
             }
             // Fallback to description regex
             if (!personLoc) {
               const extracted = extractLocationFromDescription(description);
-              if (extracted) personLoc = extracted;
+              if (extracted) {
+                personLoc = extracted;
+                personLocMethod = "Description regex (fallback — no .YrbPuc element found in HTML)";
+              }
             }
           }
         }
 
-        // Fallback: extract country subdomain from LinkedIn URL (e.g. "uk" from https://uk.linkedin.com)
+        // Fallback: extract country subdomain from LinkedIn URL
         if (!personLoc) {
           for (const result of results) {
             const urlMatch = result.url?.match(/^https?:\/\/([a-z]{2})\.linkedin\.com/i);
             if (urlMatch?.[1] && urlMatch[1] !== 'www') {
               personLoc = `LinkedIn country: ${urlMatch[1].toUpperCase()}`;
+              personLocMethod = "LinkedIn URL subdomain (fallback — no location in HTML or description)";
               break;
             }
           }
         }
 
-        personSnippet = snippets.join(" | ");
+        const methodNote = personLoc
+          ? `Method: ${personLocMethod}. Location: ${personLoc}.`
+          : "No location extracted from any method (HTML, description, URL subdomain).";
+        personSnippet = `${methodNote} | ${snippets.join(" | ")}`;
       }
 
       if (!personLoc) {
