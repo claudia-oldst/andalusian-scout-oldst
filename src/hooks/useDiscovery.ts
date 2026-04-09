@@ -126,6 +126,8 @@ export function useDiscovery(invalidateContacts: () => void) {
           companyId = existingCompany.id;
           companySnippet = `Location from Company Master Record (cached). ${companyLocs.join("; ")}`;
         } else {
+          // Add delay before map to avoid rate limiting
+          await new Promise((r) => setTimeout(r, 1200));
           const mapResult = await firecrawlApi.map(domainUrl, {
             search: "contact about locations office headquarters",
             limit: 20,
@@ -150,6 +152,8 @@ export function useDiscovery(invalidateContacts: () => void) {
 
           for (const pageUrl of toScrape) {
             try {
+              // Add delay between scrape requests
+              await new Promise((r) => setTimeout(r, 1500));
               const scrapeRes = await firecrawlApi.scrape(pageUrl, { formats: ["markdown"] });
               if (scrapeRes.success) {
                 mergedMarkdown += (scrapeRes.data?.markdown || scrapeRes.data?.data?.markdown || "") + "\n\n";
@@ -253,7 +257,8 @@ export function useDiscovery(invalidateContacts: () => void) {
           console.error(`Discovery failed for ${contact.name}:`, err);
         }
         if (pendingContacts.indexOf(contact) < pendingContacts.length - 1) {
-          await new Promise((r) => setTimeout(r, 1000));
+          // Increase delay between contacts to allow for internal per-request delays
+          await new Promise((r) => setTimeout(r, 2000));
         }
       }
 
