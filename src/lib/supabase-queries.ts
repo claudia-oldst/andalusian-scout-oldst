@@ -153,13 +153,7 @@ export async function updateContactLocations(
   companyId?: string,
   personLocationCandidates?: { location: string; method: string; url: string }[]
 ) {
-  const patch: {
-    person_location_raw: string;
-    company_location_raw: string[];
-    confidence_id: number;
-    company_id?: string;
-    metadata?: Record<string, unknown>;
-  } = {
+  const patch: Record<string, unknown> = {
     person_location_raw: personLocation,
     company_location_raw: companyLocations,
     confidence_id: confidenceId,
