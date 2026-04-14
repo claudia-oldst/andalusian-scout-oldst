@@ -235,7 +235,7 @@ export function useDiscovery(invalidateContacts: () => void) {
       confId = CONFIDENCE.LOW;
     }
 
-    await updateContactLocations(contact.id, personLoc, companyLocs, confId, companyId);
+    await updateContactLocations(contact.id, personLoc, companyLocs, confId, companyId, personLocationCandidates);
 
     if (autoDesignation !== DESIGNATION.PENDING) {
       await updateContactDesignation(contact.id, autoDesignation);
