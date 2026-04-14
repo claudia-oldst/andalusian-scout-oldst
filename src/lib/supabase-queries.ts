@@ -150,19 +150,27 @@ export async function updateContactLocations(
   personLocation: string,
   companyLocations: string[],
   confidenceId: number,
-  companyId?: string
+  companyId?: string,
+  personLocationCandidates?: { location: string; method: string; url: string }[]
 ) {
   const patch: {
     person_location_raw: string;
     company_location_raw: string[];
     confidence_id: number;
     company_id?: string;
+    metadata?: Record<string, unknown>;
   } = {
     person_location_raw: personLocation,
     company_location_raw: companyLocations,
     confidence_id: confidenceId,
   };
   if (companyId) patch.company_id = companyId;
+  if (personLocationCandidates && personLocationCandidates.length > 0) {
+    // Merge with existing metadata
+    const { data: existing } = await supabase.from('contacts').select('metadata').eq('id', id).single();
+    const existingMeta = (existing?.metadata as Record<string, unknown>) || {};
+    patch.metadata = { ...existingMeta, person_location_candidates: personLocationCandidates };
+  }
 
   const { error } = await supabase
     .from('contacts')
