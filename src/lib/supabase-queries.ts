@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import type { Contact, ActivityLog, Lookups, Company } from '@/types/contact';
 
 export interface PaginatedResult<T> {
@@ -150,19 +151,26 @@ export async function updateContactLocations(
   personLocation: string,
   companyLocations: string[],
   confidenceId: number,
-  companyId?: string
+  companyId?: string,
+  personLocationCandidates?: { location: string; method: string; url: string }[]
 ) {
   const patch: {
     person_location_raw: string;
     company_location_raw: string[];
     confidence_id: number;
     company_id?: string;
+    metadata?: Json;
   } = {
     person_location_raw: personLocation,
     company_location_raw: companyLocations,
     confidence_id: confidenceId,
   };
   if (companyId) patch.company_id = companyId;
+  if (personLocationCandidates && personLocationCandidates.length > 0) {
+    const { data: existing } = await supabase.from('contacts').select('metadata').eq('id', id).single();
+    const existingMeta = (existing?.metadata as Record<string, Json> | null) || {};
+    patch.metadata = { ...existingMeta, person_location_candidates: personLocationCandidates as unknown as Json };
+  }
 
   const { error } = await supabase
     .from('contacts')
