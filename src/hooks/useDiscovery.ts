@@ -34,6 +34,7 @@ export function useDiscovery(invalidateContacts: () => void) {
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(personQuery)}`;
 
     let personLoc = "";
+    const personLocationCandidates: { location: string; method: string; url: string }[] = [];
     let personLocMethod = "";
     let companyLocs: string[] = contact.company_location_raw || [];
     let companySourceUrl = "";
