@@ -54,36 +54,44 @@ export function useDiscovery(invalidateContacts: () => void) {
 
         for (const result of results) {
           const description = result.description || "";
-          snippets.push(`[${result.url || "?"}] ${description.slice(0, 200)}`);
-          if (!personLoc) {
-            // Try HTML DOM parsing first (Google SERP .YrbPuc span)
+          const resultUrl = result.url || "?";
+          snippets.push(`[${resultUrl}] ${description.slice(0, 200)}`);
+
+          // 1. Description regex (primary)
+          const fromDesc = extractLocationFromDescription(description);
+          if (fromDesc) {
+            personLocationCandidates.push({ location: fromDesc, method: "Description regex", url: resultUrl });
+            if (!personLoc) {
+              personLoc = fromDesc;
+              personLocMethod = "Description regex";
+            }
+          }
+
+          // 2. LinkedIn URL subdomain
+          if (!fromDesc) {
+            const urlMatch = resultUrl.match(/^https?:\/\/([a-z]{2})\.linkedin\.com/i);
+            if (urlMatch?.[1] && urlMatch[1] !== "www") {
+              const subLoc = `LinkedIn country: ${urlMatch[1].toUpperCase()}`;
+              personLocationCandidates.push({ location: subLoc, method: "LinkedIn URL subdomain", url: resultUrl });
+              if (!personLoc) {
+                personLoc = subLoc;
+                personLocMethod = "LinkedIn URL subdomain (fallback — no location in description)";
+              }
+            }
+          }
+
+          // 3. HTML DOMParser (.YrbPuc span)
+          if (!fromDesc) {
             const htmlContent = result.html || result.data?.html || "";
             if (htmlContent) {
               const fromHtml = extractLocationFromGoogleHtml(htmlContent);
               if (fromHtml) {
-                personLoc = fromHtml;
-                personLocMethod = "HTML DOMParser (.YrbPuc span)";
+                personLocationCandidates.push({ location: fromHtml, method: "HTML DOMParser (.YrbPuc span)", url: resultUrl });
+                if (!personLoc) {
+                  personLoc = fromHtml;
+                  personLocMethod = "HTML DOMParser (.YrbPuc span) (fallback — no location in description or URL)";
+                }
               }
-            }
-            // Fallback to description regex
-            if (!personLoc) {
-              const extracted = extractLocationFromDescription(description);
-              if (extracted) {
-                personLoc = extracted;
-                personLocMethod = "Description regex (fallback — no .YrbPuc element found in HTML)";
-              }
-            }
-          }
-        }
-
-        // Fallback: extract country subdomain from LinkedIn URL
-        if (!personLoc) {
-          for (const result of results) {
-            const urlMatch = result.url?.match(/^https?:\/\/([a-z]{2})\.linkedin\.com/i);
-            if (urlMatch?.[1] && urlMatch[1] !== "www") {
-              personLoc = `LinkedIn country: ${urlMatch[1].toUpperCase()}`;
-              personLocMethod = "LinkedIn URL subdomain (fallback — no location in HTML or description)";
-              break;
             }
           }
         }
