@@ -50,6 +50,65 @@ interface ContactTableProps {
   allVisibleApproved: boolean;
 }
 
+interface PersonLocationCandidate {
+  location: string;
+  method: string;
+  url: string;
+}
+
+function PersonLocationCell({ contact }: { contact: Contact }) {
+  const candidates: PersonLocationCandidate[] =
+    (contact.metadata as Record<string, unknown>)?.person_location_candidates as PersonLocationCandidate[] || [];
+
+  const googleSearchUrl = `https://www.google.com/search?q=site%3Alinkedin.com+%22${encodeURIComponent(contact.name)}%22+%22${encodeURIComponent(contact.company_name)}%22+location`;
+
+  if (!contact.person_location_raw) {
+    return <span className="text-muted-foreground text-xs italic">—</span>;
+  }
+
+  const link = (
+    <a
+      href={googleSearchUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`text-accent hover:underline ${candidates.length > 1 ? 'border-b border-dotted border-accent/40 cursor-help' : ''}`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {contact.person_location_raw}
+      {candidates.length > 1 && (
+        <span className="text-muted-foreground text-xs ml-1">(+{candidates.length - 1})</span>
+      )}
+    </a>
+  );
+
+  if (candidates.length <= 1) return link;
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">
+            All Person Locations Found
+          </p>
+          <ul className="space-y-0.5">
+            {candidates.map((c, i) => {
+              const isBest = c.location === contact.person_location_raw;
+              return (
+                <li key={i} className={isBest ? 'font-semibold text-accent' : ''}>
+                  {c.location}
+                  <span className="ml-1 text-[10px] text-muted-foreground">({c.method})</span>
+                  {isBest && <span className="ml-1 text-[10px] text-accent">(selected)</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 function CompanyLocationCell({ contact }: { contact: Contact }) {
   const locs = contact.company_location_raw;
   const sourceUrl = contact.company?.website_url;
