@@ -101,9 +101,10 @@ export const ActivityLogModal = ({
                     )}
 
                     {log.result_snippet && (() => {
-                      const methodMatch = log.result_snippet.match(/^Method:\s*(.+?)\.\s*Location:\s*(.+?)\.\s*\|\s*([\s\S]*)$/);
-                      if (methodMatch) {
-                        const [, method, location, rest] = methodMatch;
+                      // Person discovery: "Method: X. Location: Y. | rest"
+                      const personMatch = log.result_snippet.match(/^Method:\s*(.+?)\.\s*Location:\s*(.+?)\.\s*\|\s*([\s\S]*)$/);
+                      if (personMatch) {
+                        const [, method, location, rest] = personMatch;
                         return (
                           <div className="space-y-1.5">
                             <div className="flex flex-wrap gap-1.5 text-[11px]">
@@ -120,7 +121,53 @@ export const ActivityLogModal = ({
                           </div>
                         );
                       }
-                      // Non-method snippets (e.g. company discovery)
+                      // Company discovery: "Method: X. Mapped N pages; scraped ... Extracted M location(s): loc1; loc2."
+                      const companyMatch = log.result_snippet.match(/^Method:\s*(.+?)\.\s*(Mapped.+?)\.\s*Extracted\s+(\d+)\s+location\(s\):\s*([\s\S]*)\.?$/);
+                      if (companyMatch) {
+                        const [, method, scrapeInfo, count, locations] = companyMatch;
+                        return (
+                          <div className="space-y-1.5">
+                            <div className="flex flex-wrap gap-1.5 text-[11px]">
+                              <span className="inline-flex items-center gap-1 bg-accent/15 text-accent rounded px-1.5 py-0.5 font-medium">
+                                {method}
+                              </span>
+                              {locations && locations !== "none found" && (
+                                <span className="inline-flex items-center gap-1 bg-primary/10 text-primary rounded px-1.5 py-0.5 font-medium">
+                                  📍 {count} location(s)
+                                </span>
+                              )}
+                            </div>
+                            {locations && locations !== "none found" && (
+                              <p className="text-xs text-foreground/70 leading-relaxed">
+                                {locations.replace(/\.+$/, '').split('; ').map((loc, i) => (
+                                  <span key={i} className="block">• {loc}</span>
+                                ))}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-foreground/40 leading-relaxed">
+                              {scrapeInfo}
+                            </p>
+                          </div>
+                        );
+                      }
+                      // Cached company
+                      const cachedMatch = log.result_snippet.match(/^Location from Company Master Record \(cached\)\.\s*([\s\S]*)$/);
+                      if (cachedMatch) {
+                        return (
+                          <div className="space-y-1.5">
+                            <div className="flex flex-wrap gap-1.5 text-[11px]">
+                              <span className="inline-flex items-center gap-1 bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-medium">
+                                Cached (Company Master)
+                              </span>
+                            </div>
+                            <p className="text-xs text-foreground/70 leading-relaxed">
+                              {cachedMatch[1].split('; ').map((loc, i) => (
+                                <span key={i} className="block">• {loc}</span>
+                              ))}
+                            </p>
+                          </div>
+                        );
+                      }
                       return (
                         <p className="text-xs text-foreground/70 leading-relaxed">
                           {log.result_snippet}
