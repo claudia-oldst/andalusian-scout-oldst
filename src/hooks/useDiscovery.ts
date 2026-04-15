@@ -175,16 +175,25 @@ export function useDiscovery(invalidateContacts: () => void) {
 
           companySourceUrl = scrapedUrls[0] || domainUrl;
 
+          let companyLocMethod = "";
           let extractedLocs = await extractLocationsViaLLM(mergedMarkdown);
-          if (extractedLocs.length === 0) {
+          if (extractedLocs.length > 0) {
+            companyLocMethod = "LLM extraction (Gemini)";
+          } else {
             extractedLocs = extractCompanyLocationsFromMarkdown(mergedMarkdown);
+            if (extractedLocs.length > 0) {
+              companyLocMethod = "Regex extraction (fallback — LLM found nothing)";
+            }
           }
           if (extractedLocs.length > 0) {
             companyLocs = extractedLocs;
           }
 
           const mappedCount = allLinks.length;
-          companySnippet = `Mapped ${mappedCount} pages; scraped ${scrapedUrls.join(", ") || "homepage"}. Extracted ${companyLocs.length} location(s): ${companyLocs.join("; ") || "none found"}.`;
+          const methodNote = companyLocMethod
+            ? `Method: ${companyLocMethod}.`
+            : "Method: None — no locations found by LLM or regex.";
+          companySnippet = `${methodNote} Mapped ${mappedCount} pages; scraped ${scrapedUrls.join(", ") || "homepage"}. Extracted ${companyLocs.length} location(s): ${companyLocs.join("; ") || "none found"}.`;
 
           const company = await upsertCompany({
             domain: rawDomain,
