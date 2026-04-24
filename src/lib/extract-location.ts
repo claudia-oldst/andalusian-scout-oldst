@@ -194,6 +194,81 @@ export function extractLocationFromGoogleHtml(html: string): string {
   return '';
 }
 
+/**
+ * SERP candidate with originating method tag and (when available) the LinkedIn URL it relates to.
+ */
+export type SerpCandidate = { value: string; method: string; url: string };
+
+/**
+ * Extract person-location candidates from a full Google SERP HTML page.
+ * Runs three independent methods on the same document:
+ *   1. <em>Location</em>: XXX ·   (Google bolds query terms — captures the explicit "Location: ..." snippet)
+ *   2. div.YrbPuc span             (Google's grey location/snippet line)
+ *   3. LinkedIn country subdomain  (e.g. uk.linkedin.com → "LinkedIn country: UK")
+ */
+export function extractPersonLocationCandidatesFromSerpHtml(html: string): SerpCandidate[] {
+  if (!html) return [];
+  const candidates: SerpCandidate[] = [];
+
+  // Method 1: <em>Location</em>: XXX ·
+  // Lazy match, stops at first " ·" or HTML tag.
+  const labelRegex = /<em>Location<\/em>\s*:\s*([^<·]+?)(?=\s*·|<)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = labelRegex.exec(html)) !== null) {
+    const raw = m[1]?.trim();
+    if (raw && raw.length > 1 && raw.length < 100) {
+      candidates.push({
+        value: cleanLocation(raw),
+        method: 'SERP regex (<em>Location: label)',
+        url: '',
+      });
+    }
+  }
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // Method 2: div.YrbPuc span
+    const yrbSpans = doc.querySelectorAll('div.YrbPuc span, .YrbPuc span');
+    yrbSpans.forEach((span) => {
+      const text = span.textContent?.trim();
+      if (text && text.length > 1 && text.length < 150) {
+        candidates.push({
+          value: cleanLocation(text),
+          method: 'SERP DOMParser (.YrbPuc span)',
+          url: '',
+        });
+      }
+    });
+
+    // Method 3: LinkedIn country subdomain from result anchor hrefs
+    const anchors = doc.querySelectorAll('a[href]');
+    const seenSub = new Set<string>();
+    anchors.forEach((a) => {
+      const href = a.getAttribute('href') || '';
+      // Google often wraps results in /url?q=https://uk.linkedin.com/...
+      const decoded = href.replace(/^\/url\?q=/, '');
+      const subMatch = decoded.match(/^https?:\/\/([a-z]{2})\.linkedin\.com\/in\//i);
+      if (subMatch?.[1]) {
+        const cc = subMatch[1].toLowerCase();
+        if (cc !== 'ww' && !seenSub.has(cc)) {
+          seenSub.add(cc);
+          candidates.push({
+            value: `LinkedIn country: ${cc.toUpperCase()}`,
+            method: 'LinkedIn URL subdomain',
+            url: decoded.split('&')[0],
+          });
+        }
+      }
+    });
+  } catch {
+    // DOM parsing failed — Method 1 results (regex-only) are still returned.
+  }
+
+  return candidates;
+}
+
 function cleanLocation(raw: string): string {
   let loc = raw.trim();
   loc = loc.replace(/[*_`#]+/g, '').trim();
