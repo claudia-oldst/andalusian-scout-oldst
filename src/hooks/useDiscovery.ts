@@ -34,13 +34,35 @@ export function useDiscovery(invalidateContacts: () => void) {
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(personQuery)}`;
 
     let personLoc = "";
-    const personLocationCandidates: { location: string; method: string; url: string }[] = [];
+    const personLocationCandidates: { location: string; method: string; url: string; score: number }[] = [];
     let personLocMethod = "";
     let companyLocs: string[] = contact.company_location_raw || [];
     let companySourceUrl = "";
     let personSnippet = "No results found.";
     let companySnippet = "No results found.";
     let companyId: string | undefined;
+
+    /** Score a candidate location string. Higher = better. */
+    const scoreLocation = (value: string, sourceMethod: string): number => {
+      const commaCount = (value.match(/,/g) || []).length;
+      if (sourceMethod.includes('leading geo segment')) {
+        if (commaCount >= 2) return 100; // City, Region, Country
+        if (commaCount === 1) return 70;  // City, Region/Country
+        return 40;
+      }
+      if (sourceMethod.includes('Location: label')) {
+        if (commaCount >= 2) return 90;
+        if (commaCount === 1) return 75;
+        return 60; // single token like "Short Hills" — still trustworthy from explicit label
+      }
+      if (sourceMethod.includes('YrbPuc')) {
+        if (commaCount >= 2) return 85;
+        if (commaCount === 1) return 65;
+        return 50;
+      }
+      if (sourceMethod.includes('subdomain')) return 20;
+      return 10;
+    };
 
     // ── Person location: Firecrawl Search API (primary) ──
     try {
@@ -57,49 +79,59 @@ export function useDiscovery(invalidateContacts: () => void) {
           const resultUrl = result.url || "?";
           snippets.push(`[${resultUrl}] ${description.slice(0, 200)}`);
 
-          // 1. Description regex (primary)
-          const fromDesc = extractLocationFromDescription(description);
-          if (fromDesc) {
-            personLocationCandidates.push({ location: fromDesc, method: "Description regex", url: resultUrl });
-            if (!personLoc) {
-              personLoc = fromDesc;
-              personLocMethod = "Description regex";
-            }
+          // 1. Description regex — collect ALL candidates (Location: label + leading geo)
+          const descCandidates = extractLocationCandidatesFromDescription(description);
+          for (const c of descCandidates) {
+            personLocationCandidates.push({
+              location: c.value,
+              method: c.method,
+              url: resultUrl,
+              score: scoreLocation(c.value, c.method),
+            });
           }
 
-          // 2. LinkedIn URL subdomain
-          if (!fromDesc) {
-            const urlMatch = resultUrl.match(/^https?:\/\/([a-z]{2})\.linkedin\.com/i);
-            if (urlMatch?.[1] && urlMatch[1] !== "www") {
-              const subLoc = `LinkedIn country: ${urlMatch[1].toUpperCase()}`;
-              personLocationCandidates.push({ location: subLoc, method: "LinkedIn URL subdomain", url: resultUrl });
-              if (!personLoc) {
-                personLoc = subLoc;
-                personLocMethod = "LinkedIn URL subdomain (fallback — no location in description)";
-              }
-            }
+          // 2. LinkedIn URL subdomain (always collected as a low-score backup)
+          const urlMatch = resultUrl.match(/^https?:\/\/([a-z]{2})\.linkedin\.com/i);
+          if (urlMatch?.[1] && urlMatch[1] !== "www") {
+            const subLoc = `LinkedIn country: ${urlMatch[1].toUpperCase()}`;
+            personLocationCandidates.push({
+              location: subLoc,
+              method: "LinkedIn URL subdomain",
+              url: resultUrl,
+              score: scoreLocation(subLoc, 'subdomain'),
+            });
           }
 
           // 3. HTML DOMParser (.YrbPuc span)
-          if (!fromDesc) {
-            const htmlContent = result.html || result.data?.html || "";
-            if (htmlContent) {
-              const fromHtml = extractLocationFromGoogleHtml(htmlContent);
-              if (fromHtml) {
-                personLocationCandidates.push({ location: fromHtml, method: "HTML DOMParser (.YrbPuc span)", url: resultUrl });
-                if (!personLoc) {
-                  personLoc = fromHtml;
-                  personLocMethod = "HTML DOMParser (.YrbPuc span) (fallback — no location in description or URL)";
-                }
-              }
+          const htmlContent = result.html || result.data?.html || "";
+          if (htmlContent) {
+            const fromHtml = extractLocationFromGoogleHtml(htmlContent);
+            if (fromHtml) {
+              personLocationCandidates.push({
+                location: fromHtml,
+                method: "HTML DOMParser (.YrbPuc span)",
+                url: resultUrl,
+                score: scoreLocation(fromHtml, 'YrbPuc'),
+              });
             }
           }
         }
 
+        // Pick highest-scoring candidate as the winner
+        if (personLocationCandidates.length > 0) {
+          personLocationCandidates.sort((a, b) => b.score - a.score);
+          const winner = personLocationCandidates[0];
+          personLoc = winner.location;
+          personLocMethod = winner.method;
+        }
+
+        const rankedList = personLocationCandidates
+          .map((c, i) => `${i + 1}. [${c.score}] ${c.location} (${c.method})`)
+          .join(' | ');
         const methodNote = personLoc
           ? `Method: ${personLocMethod}. Location: ${personLoc}.`
           : "No location extracted from any method (HTML, description, URL subdomain).";
-        personSnippet = `${methodNote} | ${snippets.join(" | ")}`;
+        personSnippet = `${methodNote} | Ranked candidates: ${rankedList || 'none'} | Raw snippets: ${snippets.join(" | ")}`;
       }
 
       if (!personLoc) {
