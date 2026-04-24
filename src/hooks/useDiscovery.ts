@@ -30,7 +30,7 @@ export function useDiscovery(invalidateContacts: () => void) {
   const { toast } = useToast();
 
   const runDiscoveryForContact = useCallback(async (contact: Contact) => {
-    const personQuery = `site:linkedin.com/in/ "${contact.name}" "${contact.company_name}" "Location"`;
+    const personQuery = `site:linkedin.com/in/ ${contact.name} ${contact.company_name} Location`;
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(personQuery)}`;
 
     let personLoc = "";
