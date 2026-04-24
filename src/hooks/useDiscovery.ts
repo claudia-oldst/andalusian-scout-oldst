@@ -13,8 +13,7 @@ import {
 import { firecrawlApi, extractLocationsViaLLM } from "@/lib/api/firecrawl";
 import {
   extractCompanyLocationsFromMarkdown,
-  extractLocationCandidatesFromDescription,
-  extractLocationFromGoogleHtml,
+  extractPersonLocationCandidatesFromSerpHtml,
 } from "@/lib/extract-location";
 import { extractDomainFromEmail, extractRawDomain } from "@/lib/extract-domain";
 import { extractCity } from "@/lib/location-matching";
