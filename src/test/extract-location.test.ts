@@ -4,6 +4,7 @@ import {
   extractLocationFromDescription,
   extractLocationFromGoogleHtml,
   extractCompanyLocationsFromMarkdown,
+  extractPersonLocationCandidatesFromSerpHtml,
 } from '@/lib/extract-location';
 
 describe('extractLocationFromMarkdown', () => {
@@ -74,5 +75,44 @@ describe('extractCompanyLocationsFromMarkdown', () => {
     const locs = extractCompanyLocationsFromMarkdown(md);
     const londonCount = locs.filter((l) => l.toLowerCase().includes('london')).length;
     expect(londonCount).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('extractPersonLocationCandidatesFromSerpHtml', () => {
+  it('extracts from <em>Location</em>: XXX · pattern', () => {
+    const html = `<div>Experience: Vikings · <em>Location</em>: Short Hills, New Jersey, United States · 215 connections</div>`;
+    const cands = extractPersonLocationCandidatesFromSerpHtml(html);
+    const m1 = cands.find((c) => c.method.includes('Location: label'));
+    expect(m1?.value).toBe('Short Hills, New Jersey, United States');
+  });
+
+  it('extracts from div.YrbPuc span', () => {
+    const html = `<div class="YrbPuc"><span>London, England, United Kingdom</span></div>`;
+    const cands = extractPersonLocationCandidatesFromSerpHtml(html);
+    const m2 = cands.find((c) => c.method.includes('YrbPuc'));
+    expect(m2?.value).toBe('London, England, United Kingdom');
+  });
+
+  it('extracts LinkedIn country subdomain from anchor href', () => {
+    const html = `<a href="https://uk.linkedin.com/in/jane-doe">Jane Doe</a>`;
+    const cands = extractPersonLocationCandidatesFromSerpHtml(html);
+    const m3 = cands.find((c) => c.method.includes('subdomain'));
+    expect(m3?.value).toBe('LinkedIn country: UK');
+  });
+
+  it('extracts all three methods from a combined fixture', () => {
+    const html = `
+      <a href="https://uk.linkedin.com/in/jane-doe">Jane Doe</a>
+      <div><em>Location</em>: Short Hills · 215 connections</div>
+      <div class="YrbPuc"><span>London, England, United Kingdom</span></div>
+    `;
+    const cands = extractPersonLocationCandidatesFromSerpHtml(html);
+    expect(cands.some((c) => c.method.includes('Location: label') && c.value === 'Short Hills')).toBe(true);
+    expect(cands.some((c) => c.method.includes('YrbPuc') && c.value === 'London, England, United Kingdom')).toBe(true);
+    expect(cands.some((c) => c.method.includes('subdomain') && c.value === 'LinkedIn country: UK')).toBe(true);
+  });
+
+  it('returns empty for empty input', () => {
+    expect(extractPersonLocationCandidatesFromSerpHtml('')).toEqual([]);
   });
 });
