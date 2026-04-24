@@ -101,10 +101,19 @@ export const ActivityLogModal = ({
                     )}
 
                     {log.result_snippet && (() => {
-                      // Person discovery: "Method: X. Location: Y. | rest"
-                      const personMatch = log.result_snippet.match(/^Method:\s*(.+?)\.\s*Location:\s*(.+?)\.\s*\|\s*([\s\S]*)$/);
+                      // Person discovery: "Method: X. Location: Y. | Ranked candidates: ... | Raw snippets: ..."
+                      const personMatch = log.result_snippet.match(
+                        /^Method:\s*(.+?)\.\s*Location:\s*(.+?)\.\s*\|\s*Ranked candidates:\s*([\s\S]*?)\s*\|\s*Raw snippets:\s*([\s\S]*)$/
+                      );
                       if (personMatch) {
-                        const [, method, location, rest] = personMatch;
+                        const [, method, location, ranked, rawSnippets] = personMatch;
+                        const candidateLines = ranked === 'none'
+                          ? []
+                          : ranked.split(' | ').map((line) => {
+                              // "1. [100] Short Hills, NJ, USA (Description regex (leading geo segment))"
+                              const m = line.match(/^(\d+)\.\s*\[(\d+)\]\s*(.+?)\s*\((.+)\)$/);
+                              return m ? { rank: m[1], score: m[2], loc: m[3], method: m[4] } : null;
+                            }).filter(Boolean);
                         return (
                           <div className="space-y-1.5">
                             <div className="flex flex-wrap gap-1.5 text-[11px]">
@@ -115,8 +124,22 @@ export const ActivityLogModal = ({
                                 📍 {location}
                               </span>
                             </div>
-                            <p className="text-xs text-foreground/50 leading-relaxed line-clamp-3">
-                              {rest}
+                            {candidateLines.length > 1 && (
+                              <div className="text-[10px] text-foreground/60 space-y-0.5 pl-1 border-l-2 border-border/40">
+                                <div className="text-[9px] tracking-wider uppercase text-muted-foreground mb-0.5 pl-1.5">
+                                  All candidates (ranked)
+                                </div>
+                                {candidateLines.map((c, i) => (
+                                  <div key={i} className="pl-1.5 flex items-baseline gap-1.5">
+                                    <span className="font-mono text-foreground/40 w-6">[{c!.score}]</span>
+                                    <span className="font-medium text-foreground/80">{c!.loc}</span>
+                                    <span className="text-foreground/40">— {c!.method}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <p className="text-xs text-foreground/40 leading-relaxed line-clamp-2">
+                              {rawSnippets}
                             </p>
                           </div>
                         );
