@@ -63,60 +63,37 @@ export function useDiscovery(invalidateContacts: () => void) {
       return 10;
     };
 
-    // ── Person location: Firecrawl Search API (primary) ──
+    // ── Person location: scrape Google SERP HTML, extract via 3 methods ──
     try {
-      const personResult = await firecrawlApi.search(personQuery, {
-        limit: 10,
-        scrapeOptions: { formats: ["html"] },
+      const personResult = await firecrawlApi.scrape(googleSearchUrl, {
+        formats: ["html"],
+        onlyMainContent: false,
       });
-      if (personResult.success && personResult.data?.length > 0) {
-        const results = personResult.data.slice(0, 4);
-        const snippets: string[] = [];
 
-        for (const result of results) {
-          const description = result.description || "";
-          const resultUrl = result.url || "?";
-          snippets.push(`[${resultUrl}] ${description.slice(0, 200)}`);
+      const html: string =
+        (personResult as any).data?.html ||
+        (personResult as any).data?.data?.html ||
+        (personResult as any).html ||
+        "";
 
-          // 1. Description regex — collect ALL candidates (Location: label + leading geo)
-          const descCandidates = extractLocationCandidatesFromDescription(description);
-          for (const c of descCandidates) {
-            personLocationCandidates.push({
-              location: c.value,
-              method: c.method,
-              url: resultUrl,
-              score: scoreLocation(c.value, c.method),
-            });
-          }
+      if (personResult.success && html) {
+        const serpCandidates = extractPersonLocationCandidatesFromSerpHtml(html);
 
-          // 2. LinkedIn URL subdomain (always collected as a low-score backup)
-          const urlMatch = resultUrl.match(/^https?:\/\/([a-z]{2})\.linkedin\.com/i);
-          if (urlMatch?.[1] && urlMatch[1] !== "www") {
-            const subLoc = `LinkedIn country: ${urlMatch[1].toUpperCase()}`;
-            personLocationCandidates.push({
-              location: subLoc,
-              method: "LinkedIn URL subdomain",
-              url: resultUrl,
-              score: scoreLocation(subLoc, "subdomain"),
-            });
-          }
+        for (const c of serpCandidates) {
+          // Map SERP method strings to scoreLocation's expected tags
+          let scoreTag = "";
+          if (c.method.includes("Location: label")) scoreTag = "Location: label";
+          else if (c.method.includes("YrbPuc")) scoreTag = "YrbPuc";
+          else if (c.method.includes("subdomain")) scoreTag = "subdomain";
 
-          // 3. HTML DOMParser (.YrbPuc span)
-          const htmlContent = result.html || result.data?.html || "";
-          if (htmlContent) {
-            const fromHtml = extractLocationFromGoogleHtml(htmlContent);
-            if (fromHtml) {
-              personLocationCandidates.push({
-                location: fromHtml,
-                method: "HTML DOMParser (.YrbPuc span)",
-                url: resultUrl,
-                score: scoreLocation(fromHtml, "YrbPuc"),
-              });
-            }
-          }
+          personLocationCandidates.push({
+            location: c.value,
+            method: c.method,
+            url: c.url || googleSearchUrl,
+            score: scoreLocation(c.value, scoreTag),
+          });
         }
 
-        // Pick highest-scoring candidate as the winner
         if (personLocationCandidates.length > 0) {
           personLocationCandidates.sort((a, b) => b.score - a.score);
           const winner = personLocationCandidates[0];
@@ -129,12 +106,12 @@ export function useDiscovery(invalidateContacts: () => void) {
           .join(" | ");
         const methodNote = personLoc
           ? `Method: ${personLocMethod}. Location: ${personLoc}.`
-          : "No location extracted from any method (HTML, description, URL subdomain).";
-        personSnippet = `${methodNote} | Ranked candidates: ${rankedList || "none"} | Raw snippets: ${snippets.join(" | ")}`;
-      }
-
-      if (!personLoc) {
-        personSnippet = personSnippet || "No person location found from search.";
+          : "No location extracted from any SERP method (<em>Location, .YrbPuc, URL subdomain).";
+        personSnippet = `${methodNote} | Ranked candidates: ${rankedList || "none"} | SERP HTML length: ${html.length}`;
+      } else {
+        personSnippet = personResult.success
+          ? "SERP scrape returned no HTML."
+          : `SERP scrape failed: ${personResult.error || "unknown"}`;
       }
     } catch (err) {
       console.error("Person location discovery failed:", err);
