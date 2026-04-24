@@ -229,18 +229,16 @@ export function extractPersonLocationCandidatesFromSerpHtml(html: string): SerpC
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    // Method 2: div.YrbPuc span
-    const yrbSpans = doc.querySelectorAll('div.YrbPuc span, .YrbPuc span');
-    yrbSpans.forEach((span) => {
-      const text = span.textContent?.trim();
-      if (text && text.length > 1 && text.length < 150) {
-        candidates.push({
-          value: cleanLocation(text),
-          method: 'SERP DOMParser (.YrbPuc span)',
-          url: '',
-        });
-      }
-    });
+    // Method 2: div.YrbPuc span — only the FIRST (top result) to match the snippet under the top hit
+    const firstYrb = doc.querySelector('div.YrbPuc span, .YrbPuc span');
+    const firstText = firstYrb?.textContent?.trim();
+    if (firstText && firstText.length > 1 && firstText.length < 150) {
+      candidates.push({
+        value: cleanLocation(firstText),
+        method: 'SERP DOMParser (.YrbPuc span, top result)',
+        url: '',
+      });
+    }
 
     // Method 3: LinkedIn country subdomain from result anchor hrefs
     const anchors = doc.querySelectorAll('a[href]');
