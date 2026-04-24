@@ -210,8 +210,32 @@ export function extractPersonLocationCandidatesFromSerpHtml(html: string): SerpC
   if (!html) return [];
   const candidates: SerpCandidate[] = [];
 
-  // Method 1: <em>Location</em>: XXX ·
-  // Lazy match, stops at first " ·" or HTML tag.
+  // Helper: a "proper" location must contain a comma (City, Region[, Country]).
+  const isProperLocation = (v: string) => /,/.test(v) && v.trim().length > 3;
+
+  let parsedDoc: Document | null = null;
+  try {
+    parsedDoc = new DOMParser().parseFromString(html, 'text/html');
+  } catch {
+    parsedDoc = null;
+  }
+
+  // ── Method 2 (preferred): div.YrbPuc span on the top result ──
+  if (parsedDoc) {
+    const firstYrb = parsedDoc.querySelector('div.YrbPuc span, .YrbPuc span');
+    const firstText = firstYrb?.textContent?.trim();
+    if (firstText && firstText.length > 1 && firstText.length < 150) {
+      const value = cleanLocation(firstText);
+      candidates.push({
+        value,
+        method: 'SERP DOMParser (.YrbPuc span, top result)',
+        url: '',
+      });
+      if (isProperLocation(value)) return candidates; // ← stop here, top hit was good
+    }
+  }
+
+  // ── Method 1 (fallback): <em>Location</em>: XXX · regex ──
   const labelRegex = /<em>Location<\/em>\s*:\s*([^<·]+?)(?=\s*·|<)/gi;
   let m: RegExpExecArray | null;
   while ((m = labelRegex.exec(html)) !== null) {
@@ -224,28 +248,17 @@ export function extractPersonLocationCandidatesFromSerpHtml(html: string): SerpC
       });
     }
   }
+  // If Method 1 produced any usable candidate, stop before Method 3.
+  if (candidates.some((c) => c.method.includes('Location: label'))) {
+    return candidates;
+  }
 
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
-    // Method 2: div.YrbPuc span — only the FIRST (top result) to match the snippet under the top hit
-    const firstYrb = doc.querySelector('div.YrbPuc span, .YrbPuc span');
-    const firstText = firstYrb?.textContent?.trim();
-    if (firstText && firstText.length > 1 && firstText.length < 150) {
-      candidates.push({
-        value: cleanLocation(firstText),
-        method: 'SERP DOMParser (.YrbPuc span, top result)',
-        url: '',
-      });
-    }
-
-    // Method 3: LinkedIn country subdomain from result anchor hrefs
-    const anchors = doc.querySelectorAll('a[href]');
+  // ── Method 3 (last resort): LinkedIn country subdomain ──
+  if (parsedDoc) {
+    const anchors = parsedDoc.querySelectorAll('a[href]');
     const seenSub = new Set<string>();
     anchors.forEach((a) => {
       const href = a.getAttribute('href') || '';
-      // Google often wraps results in /url?q=https://uk.linkedin.com/...
       const decoded = href.replace(/^\/url\?q=/, '');
       const subMatch = decoded.match(/^https?:\/\/([a-z]{2})\.linkedin\.com\/in\//i);
       if (subMatch?.[1]) {
@@ -260,8 +273,6 @@ export function extractPersonLocationCandidatesFromSerpHtml(html: string): SerpC
         }
       }
     });
-  } catch {
-    // DOM parsing failed — Method 1 results (regex-only) are still returned.
   }
 
   return candidates;
