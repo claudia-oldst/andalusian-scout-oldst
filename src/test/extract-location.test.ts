@@ -4,6 +4,7 @@ import {
   extractLocationFromDescription,
   extractLocationFromGoogleHtml,
   extractCompanyLocationsFromMarkdown,
+  extractPersonLocationCandidatesFromSerpHtml,
 } from '@/lib/extract-location';
 
 describe('extractLocationFromMarkdown', () => {
