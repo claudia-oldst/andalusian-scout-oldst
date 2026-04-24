@@ -79,37 +79,47 @@ describe('extractCompanyLocationsFromMarkdown', () => {
 });
 
 describe('extractPersonLocationCandidatesFromSerpHtml', () => {
-  it('extracts from <em>Location</em>: XXX · pattern', () => {
+  it('falls back to <em>Location</em> regex when YrbPuc is missing', () => {
     const html = `<div>Experience: Vikings · <em>Location</em>: Short Hills, New Jersey, United States · 215 connections</div>`;
     const cands = extractPersonLocationCandidatesFromSerpHtml(html);
     const m1 = cands.find((c) => c.method.includes('Location: label'));
     expect(m1?.value).toBe('Short Hills, New Jersey, United States');
   });
 
-  it('extracts from div.YrbPuc span', () => {
+  it('uses YrbPuc as the preferred method (top result)', () => {
     const html = `<div class="YrbPuc"><span>London, England, United Kingdom</span></div>`;
     const cands = extractPersonLocationCandidatesFromSerpHtml(html);
     const m2 = cands.find((c) => c.method.includes('YrbPuc'));
     expect(m2?.value).toBe('London, England, United Kingdom');
   });
 
-  it('extracts LinkedIn country subdomain from anchor href', () => {
+  it('falls back to subdomain when YrbPuc and <em>Location</em> are absent', () => {
     const html = `<a href="https://uk.linkedin.com/in/jane-doe">Jane Doe</a>`;
     const cands = extractPersonLocationCandidatesFromSerpHtml(html);
     const m3 = cands.find((c) => c.method.includes('subdomain'));
     expect(m3?.value).toBe('LinkedIn country: UK');
   });
 
-  it('extracts all three methods from a combined fixture', () => {
+  it('stops at YrbPuc when it returns a proper (comma-containing) location', () => {
     const html = `
       <a href="https://uk.linkedin.com/in/jane-doe">Jane Doe</a>
       <div><em>Location</em>: Short Hills · 215 connections</div>
       <div class="YrbPuc"><span>London, England, United Kingdom</span></div>
     `;
     const cands = extractPersonLocationCandidatesFromSerpHtml(html);
-    expect(cands.some((c) => c.method.includes('Location: label') && c.value === 'Short Hills')).toBe(true);
-    expect(cands.some((c) => c.method.includes('YrbPuc') && c.value === 'London, England, United Kingdom')).toBe(true);
-    expect(cands.some((c) => c.method.includes('subdomain') && c.value === 'LinkedIn country: UK')).toBe(true);
+    expect(cands).toHaveLength(1);
+    expect(cands[0].method).toContain('YrbPuc');
+    expect(cands[0].value).toBe('London, England, United Kingdom');
+  });
+
+  it('falls through past YrbPuc when its value is a single token (no comma)', () => {
+    const html = `
+      <div class="YrbPuc"><span>London</span></div>
+      <div><em>Location</em>: Short Hills, NJ · 215 connections</div>
+    `;
+    const cands = extractPersonLocationCandidatesFromSerpHtml(html);
+    // Both YrbPuc (rejected as winner) and Method 1 candidate present; method 1 should be there.
+    expect(cands.some((c) => c.method.includes('Location: label') && c.value === 'Short Hills, NJ')).toBe(true);
   });
 
   it('returns empty for empty input', () => {
