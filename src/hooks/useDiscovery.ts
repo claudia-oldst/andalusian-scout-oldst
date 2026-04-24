@@ -30,7 +30,7 @@ export function useDiscovery(invalidateContacts: () => void) {
   const { toast } = useToast();
 
   const runDiscoveryForContact = useCallback(async (contact: Contact) => {
-    const personQuery = `site:linkedin.com "${contact.name}" "${contact.company_name}"`;
+    const personQuery = `site:linkedin.com "${contact.name}" "${contact.company_name}" "Location"`;
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(personQuery)}`;
 
     let personLoc = "";
@@ -45,22 +45,22 @@ export function useDiscovery(invalidateContacts: () => void) {
     /** Score a candidate location string. Higher = better. */
     const scoreLocation = (value: string, sourceMethod: string): number => {
       const commaCount = (value.match(/,/g) || []).length;
-      if (sourceMethod.includes('leading geo segment')) {
+      if (sourceMethod.includes("leading geo segment")) {
         if (commaCount >= 2) return 100; // City, Region, Country
-        if (commaCount === 1) return 70;  // City, Region/Country
+        if (commaCount === 1) return 70; // City, Region/Country
         return 40;
       }
-      if (sourceMethod.includes('Location: label')) {
+      if (sourceMethod.includes("Location: label")) {
         if (commaCount >= 2) return 90;
         if (commaCount === 1) return 75;
         return 60; // single token like "Short Hills" — still trustworthy from explicit label
       }
-      if (sourceMethod.includes('YrbPuc')) {
+      if (sourceMethod.includes("YrbPuc")) {
         if (commaCount >= 2) return 85;
         if (commaCount === 1) return 65;
         return 50;
       }
-      if (sourceMethod.includes('subdomain')) return 20;
+      if (sourceMethod.includes("subdomain")) return 20;
       return 10;
     };
 
@@ -98,7 +98,7 @@ export function useDiscovery(invalidateContacts: () => void) {
               location: subLoc,
               method: "LinkedIn URL subdomain",
               url: resultUrl,
-              score: scoreLocation(subLoc, 'subdomain'),
+              score: scoreLocation(subLoc, "subdomain"),
             });
           }
 
@@ -111,7 +111,7 @@ export function useDiscovery(invalidateContacts: () => void) {
                 location: fromHtml,
                 method: "HTML DOMParser (.YrbPuc span)",
                 url: resultUrl,
-                score: scoreLocation(fromHtml, 'YrbPuc'),
+                score: scoreLocation(fromHtml, "YrbPuc"),
               });
             }
           }
@@ -127,11 +127,11 @@ export function useDiscovery(invalidateContacts: () => void) {
 
         const rankedList = personLocationCandidates
           .map((c, i) => `${i + 1}. [${c.score}] ${c.location} (${c.method})`)
-          .join(' | ');
+          .join(" | ");
         const methodNote = personLoc
           ? `Method: ${personLocMethod}. Location: ${personLoc}.`
           : "No location extracted from any method (HTML, description, URL subdomain).";
-        personSnippet = `${methodNote} | Ranked candidates: ${rankedList || 'none'} | Raw snippets: ${snippets.join(" | ")}`;
+        personSnippet = `${methodNote} | Ranked candidates: ${rankedList || "none"} | Raw snippets: ${snippets.join(" | ")}`;
       }
 
       if (!personLoc) {
