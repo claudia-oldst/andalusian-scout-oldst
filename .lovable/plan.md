@@ -1,71 +1,72 @@
-
-
-# Update Location Discovery: Firecrawl Search with HTML Scraping
+# Fix Person Location Extraction (Don Becker → "Short Hills")
 
 ## Problem
-Google CAPTCHA blocks are preventing direct SERP scraping. The current flow uses Firecrawl Search but only gets text snippets — it doesn't request HTML from search results, so the `extractLocationFromGoogleHtml` (DOMParser-based `.YrbPuc span` extraction) is never used.
 
-## Architecture
+For Don Becker, the system extracted "Iowa" instead of "Short Hills" even though one of his LinkedIn snippets clearly contained `Location: Short Hills ·`.
 
-```text
-Current:  Firecrawl Search → snippet text → regex "Location: X" → fallback: URL subdomain
-Proposed: Firecrawl Search (with scrapeOptions: html) → per-result HTML → DOMParser (.YrbPuc) → fallback: snippet regex → fallback: URL subdomain
-```
+Two root causes:
 
-All Google requests route through Firecrawl's infrastructure (anti-bot, proxies) — no direct Google fetching.
+1. **First-match-wins**: `useDiscovery.ts` locks in the first candidate from the first result (e.g. "University of Iowa, BBA" from an earlier snippet) and never reconsiders later, better snippets.
+2. **Loose `Location:` regex**: The current `Location:\s*([^·\n]+)` works but is greedy, leaves trailing whitespace, and Priority 2 has no exclusion list, so strings like `University of Iowa, BBA` slip through as "locations".
 
 ## Changes
 
-### 1. Edge Function: `supabase/functions/firecrawl-search/index.ts`
-- Pass `scrapeOptions` from the client options through to the Firecrawl API body — this is already done (line 70: `scrapeOptions: options?.scrapeOptions`), so no change needed here. The edge function already forwards scrapeOptions correctly.
+### 1. `src/lib/extract-location.ts` — tighter regex + exclusions
 
-### 2. Frontend API call: `src/hooks/useDiscovery.ts`
-- Update the `firecrawlApi.search()` call to include `scrapeOptions: { formats: ['html'] }` so Firecrawl returns HTML content for each search result.
-- In the results loop, attempt `extractLocationFromGoogleHtml(result.html)` first (DOMParser for `.YrbPuc span`).
-- If that fails, fall back to `extractLocationFromDescription(result.description)` (existing regex).
-- If both fail, fall back to LinkedIn URL subdomain extraction (existing).
+**Replace Priority 1** in `extractLocationFromDescription` with the hybrid lookbehind/lookahead:
 
-### 3. Extraction logic: `src/lib/extract-location.ts`
-- Already has the DOMParser implementation for `extractLocationFromGoogleHtml`. No changes needed.
-- Fallback chain is preserved: DOMParser → description regex → URL subdomain.
-
-## Technical Details
-
-**File: `src/hooks/useDiscovery.ts`** — lines 44-71
-
-Change the search call to:
-```typescript
-const personResult = await firecrawlApi.search(personQuery, {
-  limit: 5,
-  scrapeOptions: { formats: ['html'] },
-});
+```ts
+/(?<=Location:\s).*?(?=\s·|\n|$)/
 ```
 
-Update the results loop to try HTML extraction first:
-```typescript
-for (const result of results) {
-  const description = result.description || "";
-  snippets.push(`[${result.url || "?"}] ${description.slice(0, 200)}`);
-  if (!personLoc) {
-    // Try HTML DOM parsing first (Google SERP .YrbPuc span)
-    const htmlContent = result.html || result.data?.html || "";
-    if (htmlContent) {
-      const fromHtml = extractLocationFromGoogleHtml(htmlContent);
-      if (fromHtml) personLoc = fromHtml;
-    }
-    // Fallback to description regex
-    if (!personLoc) {
-      const extracted = extractLocationFromDescription(description);
-      if (extracted) personLoc = extracted;
-    }
-  }
-}
+- Lazy `.*?` stops at first ` ·` (no over-capture).
+- Lookbehind keeps match clean (no capture group bookkeeping).
+- `\s·|\n|$` alternatives cover bullet, newline, and end-of-string cases.
+
+**Tighten Priority 2** (leading geo segment) by adding an exclusion regex for non-location strings:
+
+```
+/\b(University|College|School|Institute|MBA|BBA|BSc|MSc|PhD|LLC|Inc|Ltd|GmbH|Corp|VP|Director|Manager|Analyst|Engineer|Founder|CEO|CTO|CFO)\b/i
 ```
 
-No other files need changes. The edge function already passes `scrapeOptions` through, and the extraction function already uses DOMParser.
+If a candidate matches, skip it.
 
-## Notes
-- Firecrawl handles anti-bot/proxy routing internally — no configuration needed on our side.
-- Adding `scrapeOptions: { formats: ['html'] }` will use more Firecrawl credits per search (since it scrapes each result page). The `limit: 5` keeps this bounded.
-- The `DOMParser` call in `extractLocationFromGoogleHtml` works in the browser environment where this code runs.
+### 2. `src/hooks/useDiscovery.ts` — score-and-rank candidates
 
+Replace first-match-wins with collect-all-then-rank. Scoring rubric for each candidate:
+
+| Signal | Score |
+|---|---|
+| 3-part "City, Region, Country" | 100 |
+| 2-part "City, Country" | 70 |
+| `Location:` label match (single token allowed) | 60 |
+| HTML `.YrbPuc` span | 50 |
+| LinkedIn URL subdomain (`uk.linkedin.com` etc.) | 20 |
+| Contains excluded keyword (University, LLC, etc.) | 0 (rejected upstream) |
+
+After looping all results, pick the highest-scoring candidate as `personLoc` and record its method. Keep the full ranked list for the activity log.
+
+### 3. `src/components/ActivityLogModal.tsx` — show ranking in log
+
+In the Person Discovery snippet renderer, when multiple candidates exist, render them as a small ranked list with score + method badge under the chosen location, so future debugging is one click away.
+
+## Expected outcome for Don Becker
+
+The snippet `Experience: Minnesota Vikings Football, LLC · Location: Short Hills · 215 connections on LinkedIn.` produces:
+
+- Priority 1 hybrid regex → `Short Hills` (score 60)
+- Leading-segment scan on the same description → `Short Hills, New Jersey, United States` (score 100) ← **winner**
+- Earlier "University of Iowa, BBA" candidate → rejected by exclusion list
+
+Final stored location: **Short Hills, New Jersey, United States**.
+
+## Files
+
+- `src/lib/extract-location.ts`
+- `src/hooks/useDiscovery.ts`
+- `src/components/ActivityLogModal.tsx`
+
+## Out of scope
+
+- Company location pipeline (separate bug, already discussed for Dansa).
+- LLM re-ranking — keeping this purely deterministic.

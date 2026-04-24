@@ -119,22 +119,34 @@ export function extractCompanyLocationFromMarkdown(markdown: string): string {
   return locs[0] || '';
 }
 
-/**
- * Extract location from a LinkedIn search result description.
- */
-export function extractLocationFromDescription(description: string): string {
-  if (!description) return '';
+/** Non-location keywords that disqualify a Priority-2 candidate. */
+const NON_LOCATION_KEYWORDS =
+  /\b(University|College|School|Institute|Academy|MBA|BBA|BSc|MSc|BA|BS|MS|PhD|MD|JD|CFA|CPA|LLC|Inc|Ltd|GmbH|Corp|Company|Holdings|Partners|Capital|Group|VP|Vice President|Director|Manager|Analyst|Associate|Engineer|Officer|Founder|CEO|CTO|CFO|COO|President)\b/i;
 
-  // Priority 1: "Location: X" pattern (common in LinkedIn snippets)
-  const locLabel = description.match(/Location:\s*([^·\n]+)/i);
-  if (locLabel?.[1]) {
-    const loc = locLabel[1].trim();
+/**
+ * Candidate returned from description parsing along with method tag for ranking.
+ */
+export type DescriptionCandidate = { value: string; method: string };
+
+/**
+ * Extract ALL plausible location candidates from a LinkedIn search result description.
+ * The hook layer scores and ranks across all results.
+ */
+export function extractLocationCandidatesFromDescription(description: string): DescriptionCandidate[] {
+  if (!description) return [];
+  const candidates: DescriptionCandidate[] = [];
+
+  // Priority 1: "Location: X" — hybrid lookbehind/lookahead, lazy, multi-stop
+  // Stops at " ·", newline, or end-of-string. Captures clean text without trailing whitespace.
+  const labelMatch = description.match(/(?<=Location:\s).*?(?=\s·|\n|$)/);
+  if (labelMatch?.[0]) {
+    const loc = labelMatch[0].trim();
     if (loc.length > 2 && loc.length < 100) {
-      return cleanLocation(loc);
+      candidates.push({ value: cleanLocation(loc), method: 'Description regex (Location: label)' });
     }
   }
 
-  // Priority 2: comma-separated city/region segments
+  // Priority 2: leading "City, Region, Country" geo segment in the snippet
   const segments = description.split(/\.\s+/);
   for (const seg of segments) {
     const trimmed = seg.trim();
@@ -143,13 +155,22 @@ export function extractLocationFromDescription(description: string): string {
       trimmed.length < 80 &&
       trimmed.length > 5 &&
       /^(?:City of\s+)?[A-Z]/.test(trimmed) &&
-      !/followers|connections|See |posts|likes|LinkedIn|profile|View\s/i.test(trimmed)
+      !/followers|connections|See |posts|likes|LinkedIn|profile|View\s/i.test(trimmed) &&
+      !NON_LOCATION_KEYWORDS.test(trimmed)
     ) {
-      return cleanLocation(trimmed);
+      candidates.push({ value: cleanLocation(trimmed), method: 'Description regex (leading geo segment)' });
     }
   }
 
-  return '';
+  return candidates;
+}
+
+/**
+ * Legacy single-string API (kept for tests and any callers that just want the best guess).
+ */
+export function extractLocationFromDescription(description: string): string {
+  const all = extractLocationCandidatesFromDescription(description);
+  return all[0]?.value || '';
 }
 
 /**
