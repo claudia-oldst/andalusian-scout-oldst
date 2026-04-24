@@ -107,7 +107,28 @@ export function useDiscovery(invalidateContacts: () => void) {
         const methodNote = personLoc
           ? `Method: ${personLocMethod}. Location: ${personLoc}.`
           : "No location extracted from any SERP method (<em>Location, .YrbPuc, URL subdomain).";
-        personSnippet = `${methodNote} | Ranked candidates: ${rankedList || "none"} | SERP HTML length: ${html.length}`;
+
+        // Capture the exact HTML fragments each method inspected — for debugging
+        const m1Fragments = Array.from(
+          html.matchAll(/.{0,40}<em>Location<\/em>\s*:[^<]{0,120}(?:<[^>]+>[^<]{0,40}){0,2}/gi),
+        )
+          .slice(0, 5)
+          .map((m, i) => `M1[${i + 1}]: ${m[0].replace(/\s+/g, " ").trim()}`)
+          .join("\n");
+
+        const m2Fragments = Array.from(
+          html.matchAll(/<div[^>]*class="[^"]*YrbPuc[^"]*"[^>]*>[\s\S]{0,300}?<\/div>/gi),
+        )
+          .slice(0, 5)
+          .map((m, i) => `M2[${i + 1}]: ${m[0].replace(/\s+/g, " ").trim()}`)
+          .join("\n");
+
+        const htmlDebug = [
+          m1Fragments ? `--- Method 1 (<em>Location</em>) HTML matches ---\n${m1Fragments}` : "Method 1: no <em>Location</em> matches in HTML.",
+          m2Fragments ? `--- Method 2 (.YrbPuc) HTML matches ---\n${m2Fragments}` : "Method 2: no .YrbPuc blocks in HTML.",
+        ].join("\n\n");
+
+        personSnippet = `${methodNote} | Ranked candidates: ${rankedList || "none"} | SERP HTML length: ${html.length}\n\n${htmlDebug}`;
       } else {
         personSnippet = personResult.success
           ? "SERP scrape returned no HTML."
