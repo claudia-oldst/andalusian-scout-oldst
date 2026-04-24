@@ -200,11 +200,12 @@ export function extractLocationFromGoogleHtml(html: string): string {
 export type SerpCandidate = { value: string; method: string; url: string };
 
 /**
- * Extract person-location candidates from a full Google SERP HTML page.
- * Runs three independent methods on the same document:
- *   1. <em>Location</em>: XXX ·   (Google bolds query terms — captures the explicit "Location: ..." snippet)
- *   2. div.YrbPuc span             (Google's grey location/snippet line)
- *   3. LinkedIn country subdomain  (e.g. uk.linkedin.com → "LinkedIn country: UK")
+ * Extract person-location candidates from a full Google SERP HTML page using
+ * SEQUENTIAL FALLBACK (not all-then-rank):
+ *   1. div.YrbPuc span on the TOP result (preferred). If it yields a "proper"
+ *      location (contains a comma, e.g. "Short Hills, NJ, US"), return immediately.
+ *   2. <em>Location</em>: XXX · regex over the whole page. If any match, return.
+ *   3. LinkedIn country subdomain (e.g. uk.linkedin.com → "LinkedIn country: UK").
  */
 export function extractPersonLocationCandidatesFromSerpHtml(html: string): SerpCandidate[] {
   if (!html) return [];
